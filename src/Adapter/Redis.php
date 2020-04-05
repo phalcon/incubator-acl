@@ -9,7 +9,7 @@
  * the LICENSE file that was distributed with this source code.
  */
 
-namespace Phalcon\Acl\Adapter;
+namespace Phalcon\Incubator\Acl\Adapter;
 
 use Phalcon\Acl;
 use Phalcon\Acl\Role;

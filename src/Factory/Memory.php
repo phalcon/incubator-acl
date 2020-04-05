@@ -9,7 +9,7 @@
  * the LICENSE file that was distributed with this source code.
  */
 
-namespace Phalcon\Acl\Factory;
+namespace Phalcon\Incubator\Acl\Factory;
 
 use Phalcon\Config;
 use Phalcon\Acl\Adapter\Memory as MemoryAdapter;
