@@ -11,20 +11,18 @@
 
 namespace Phalcon\Incubator\Acl\Adapter;
 
-use Phalcon\Db;
-use Phalcon\Db\AdapterInterface as DbAdapter;
-use Phalcon\Acl\Adapter;
+use Phalcon\Acl\Enum;
 use Phalcon\Acl\Exception;
 use Phalcon\Acl\Resource;
-use Phalcon\Acl;
+use Phalcon\Acl\Adapter\AbstractAdapter;
 use Phalcon\Acl\Role;
 use Phalcon\Acl\RoleInterface;
+use Phalcon\Db\Adapter\AdapterInterface as DbAdapter;
 
 /**
- * Phalcon\Acl\Adapter\Database
  * Manages ACL lists in database tables
  */
-class Database extends Adapter
+class Database extends AbstractAdapter
 {
     /**
      * @var DbAdapter
@@ -65,7 +63,7 @@ class Database extends Adapter
      * Default action for no arguments is allow
      * @var int
      */
-    protected $noArgumentsDefaultAction = Acl::ALLOW;
+    protected $noArgumentsDefaultAction = Enum::ALLOW;
 
     /**
      * Class constructor.
@@ -116,9 +114,9 @@ class Database extends Adapter
      * @param  \Phalcon\Acl\Role|string $role
      * @param  string                   $accessInherits
      * @return boolean
-     * @throws \Phalcon\Acl\Exception
+     * @throws Exception
      */
-    public function addRole($role, $accessInherits = null)
+    public function addRole($role, $accessInherits = null): bool
     {
         if (is_string($role)) {
             $role = new Role(
@@ -172,13 +170,12 @@ class Database extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
-     * @param  string $roleName
-     * @param  string $roleToInherit
-     * @throws \Phalcon\Acl\Exception
+     * @param string $roleName
+     * @param string $roleToInherit
+     * @return bool
+     * @throws Exception
      */
-    public function addInherit($roleName, $roleToInherit)
+    public function addInherit($roleName, $roleToInherit): bool
     {
         $sql = "SELECT COUNT(*) FROM {$this->roles} WHERE name = ?";
 
@@ -214,15 +211,15 @@ class Database extends Adapter
                 ]
             );
         }
+
+        return true;
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param  string  $roleName
      * @return boolean
      */
-    public function isRole($roleName)
+    public function isRole($roleName): bool
     {
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->roles} WHERE name = ?",
@@ -236,8 +233,6 @@ class Database extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param  string  $resourceName
      * @return boolean
      */
@@ -255,7 +250,6 @@ class Database extends Adapter
     }
 
     /**
-     * {@inheritdoc}
      * Example:
      * <code>
      * //Add a resource to the the list allowing access to an action
@@ -266,9 +260,10 @@ class Database extends Adapter
      * $acl->addResource('customers', ['create', 'search']);
      * </code>
      *
-     * @param  \Phalcon\Acl\Resource|string $resource
-     * @param  array|string                 $accessList
+     * @param Resource|string $resource
+     * @param array|string $accessList
      * @return boolean
+     * @throws Exception
      */
     public function addResource($resource, $accessList = null)
     {
@@ -310,7 +305,7 @@ class Database extends Adapter
      * @param  string       $resourceName
      * @param  array|string $accessList
      * @return boolean
-     * @throws \Phalcon\Acl\Exception
+     * @throws Exception
      */
     public function addResourceAccess($resourceName, $accessList)
     {
@@ -351,11 +346,9 @@ class Database extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
-     * @return \Phalcon\Acl\Resource[]
+     * @return Resource[]
      */
-    public function getResources()
+    public function getResources(): array
     {
         $resources = [];
 
@@ -363,7 +356,7 @@ class Database extends Adapter
 
         $rows = $this->connection->fetchAll(
             $sql,
-            Db::FETCH_ASSOC
+            \Phalcon\Db\Enum::FETCH_ASSOC
         );
 
         foreach ($rows as $row) {
@@ -377,11 +370,9 @@ class Database extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @return RoleInterface[]
      */
-    public function getRoles()
+    public function getRoles(): array
     {
         $roles = [];
         $sql   = "SELECT * FROM {$this->roles}";
@@ -402,8 +393,6 @@ class Database extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param string       $resourceName
      * @param array|string $accessList
      */
@@ -413,7 +402,6 @@ class Database extends Adapter
     }
 
     /**
-     * {@inheritdoc}
      * You can use '*' as wildcard
      * Example:
      * <code>
@@ -427,18 +415,18 @@ class Database extends Adapter
      * $acl->allow('*', '*', 'browse');
      * </code>
      *
-     * @param string       $roleName
-     * @param string       $resourceName
+     * @param string $roleName
+     * @param string $resourceName
      * @param array|string $access
      * @param mixed $func
+     * @throws Exception
      */
     public function allow($roleName, $resourceName, $access, $func = null)
     {
-        $this->allowOrDeny($roleName, $resourceName, $access, Acl::ALLOW);
+        $this->allowOrDeny($roleName, $resourceName, $access, Enum::ALLOW);
     }
 
     /**
-     * {@inheritdoc}
      * You can use '*' as wildcard
      * Example:
      * <code>
@@ -452,15 +440,16 @@ class Database extends Adapter
      * $acl->deny('*', '*', 'browse');
      * </code>
      *
-     * @param  string       $roleName
-     * @param  string       $resourceName
-     * @param  array|string $access
-     * @param  mixed $func
-     * @return boolean
+     * @param string $roleName
+     * @param string $resourceName
+     * @param array|string $access
+     * @param mixed $func
+     * @return void
+     * @throws Exception
      */
     public function deny($roleName, $resourceName, $access, $func = null)
     {
-        $this->allowOrDeny($roleName, $resourceName, $access, Acl::DENY);
+        $this->allowOrDeny($roleName, $resourceName, $access, Enum::DENY);
     }
 
     /**
@@ -479,7 +468,7 @@ class Database extends Adapter
      * @param array  $parameters
      * @return bool
      */
-    public function isAllowed($role, $resource, $access, array $parameters = null)
+    public function isAllowed($role, $resource, $access, array $parameters = null): bool
     {
         $sql = implode(
             ' ',
@@ -508,7 +497,7 @@ class Database extends Adapter
         // fetch one entry...
         $allowed = $this->connection->fetchOne(
             $sql,
-            Db::FETCH_NUM,
+            \Phalcon\Db\Enum::FETCH_NUM,
             [
                 $role,
                 $role,
@@ -533,7 +522,7 @@ class Database extends Adapter
      *
      * @return int
      */
-    public function getNoArgumentsDefaultAction()
+    public function getNoArgumentsDefaultAction(): int
     {
         return $this->noArgumentsDefaultAction;
     }
@@ -544,9 +533,9 @@ class Database extends Adapter
      *
      * @param int $defaultAccess Phalcon\Acl::ALLOW or Phalcon\Acl::DENY
      */
-    public function setNoArgumentsDefaultAction($defaultAccess)
+    public function setNoArgumentsDefaultAction(int $defaultAccess)
     {
-        $this->noArgumentsDefaultAction = intval($defaultAccess);
+        $this->noArgumentsDefaultAction = $defaultAccess;
     }
 
     /**
@@ -556,10 +545,9 @@ class Database extends Adapter
      * @param  string  $resourceName
      * @param  string  $accessName
      * @param  integer $action
-     * @return boolean
-     * @throws \Phalcon\Acl\Exception
+     * @throws Exception
      */
-    protected function insertOrUpdateAccess($roleName, $resourceName, $accessName, $action)
+    protected function insertOrUpdateAccess($roleName, $resourceName, $accessName, $action): void
     {
         /**
          * Check if the access is valid in the resource unless wildcard
@@ -651,8 +639,6 @@ class Database extends Adapter
                 ]
             );
         }
-
-        return true;
     }
 
     /**
@@ -662,9 +648,9 @@ class Database extends Adapter
      * @param  string       $resourceName
      * @param  array|string $access
      * @param  integer      $action
-     * @throws \Phalcon\Acl\Exception
+     * @throws Exception
      */
-    protected function allowOrDeny($roleName, $resourceName, $access, $action)
+    protected function allowOrDeny($roleName, $resourceName, $access, $action): void
     {
         if (!$this->isRole($roleName)) {
             throw new Exception(
@@ -677,12 +663,7 @@ class Database extends Adapter
         }
 
         foreach ($access as $accessName) {
-            $this->insertOrUpdateAccess(
-                $roleName,
-                $resourceName,
-                $accessName,
-                $action
-            );
+            $this->insertOrUpdateAccess($roleName, $resourceName, $accessName, $action);
         }
     }
 }
