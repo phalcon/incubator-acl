@@ -13,10 +13,9 @@ declare(strict_types=1);
 
 namespace Phalcon\Incubator\Acl\Adapter;
 
-use Phalcon\Acl\Adapter;
+use Phalcon\Acl\Enum as AclEnum;
 use Phalcon\Acl\Exception;
 use Phalcon\Acl\Resource;
-use Phalcon\Acl;
 use Phalcon\Acl\Role;
 use Phalcon\Acl\RoleInterface;
 
@@ -35,7 +34,7 @@ class Mongo extends Adapter
      * Default action for no arguments is allow
      * @var int
      */
-    protected $noArgumentsDefaultAction = Acl::ALLOW;
+    protected $noArgumentsDefaultAction = AclEnum::ALLOW;
 
     /**
      * Class constructor.
@@ -79,10 +78,13 @@ class Mongo extends Adapter
      * <code>$acl->addRole(new Phalcon\Acl\Role('administrator'), 'consultor');</code>
      * <code>$acl->addRole('administrator', 'consultor');</code>
      *
-     * @param  string  $role
-     * @param  array   $accessInherits
-     * @return boolean
-     * @throws \Phalcon\Acl\Exception
+     * @param string|RoleInterface $role
+     * @param array $accessInherits
+     * @return void
+     * @throws Exception
+     * @throws \MongoCursorException
+     * @throws \MongoCursorTimeoutException
+     * @throws \MongoException
      */
     public function addRole($role, $accessInherits = null)
     {
@@ -126,13 +128,8 @@ class Mongo extends Adapter
         }
 
         if ($accessInherits) {
-            return $this->addInherit(
-                $role->getName(),
-                $accessInherits
-            );
+            $this->addInherit($role->getName(), $accessInherits);
         }
-
-        return true;
     }
 
     /**
