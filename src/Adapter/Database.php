@@ -113,31 +113,24 @@ class Database extends AbstractAdapter
      * </code>
      *
      * @param Role|string $role
-     * @param  string                   $accessInherits
-     * @return boolean
+     * @param mixed       $accessInherits
+     * @return bool
      * @throws AclException
      */
     public function addRole($role, $accessInherits = null): bool
     {
         if (is_string($role)) {
-            $role = new Role(
-                $role,
-                ucwords($role) . ' Role'
-            );
+            $role = new Role($role, ucwords($role) . ' Role');
         }
 
         if (!$role instanceof RoleInterface) {
-            throw new AclException(
-                'Role must be either an string or implement RoleInterface'
-            );
+            throw new AclException('Role must be either an string or implement RoleInterface');
         }
 
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->roles} WHERE name = ?",
             DbEnum::FETCH_NUM,
-            [
-                $role->getName(),
-            ]
+            [$role->getName()]
         );
 
         if (!$exists[0]) {
@@ -178,20 +171,14 @@ class Database extends AbstractAdapter
      */
     public function addInherit($roleName, $roleToInherit): bool
     {
-        $sql = "SELECT COUNT(*) FROM {$this->roles} WHERE name = ?";
-
         $exists = $this->connection->fetchOne(
-            $sql,
+            "SELECT COUNT(*) FROM {$this->roles} WHERE name = ?",
             DbEnum::FETCH_NUM,
-            [
-                $roleName,
-            ]
+            [$roleName]
         );
 
         if (!$exists[0]) {
-            throw new AclException(
-                "Role '{$roleName}' does not exist in the role list"
-            );
+            throw new AclException("Role '{$roleName}' does not exist in the role list");
         }
 
         $exists = $this->connection->fetchOne(
@@ -204,7 +191,7 @@ class Database extends AbstractAdapter
         );
 
         if (!$exists[0]) {
-            $this->connection->execute(
+            return $this->connection->execute(
                 "INSERT INTO {$this->rolesInherits} VALUES (?, ?)",
                 [
                     $roleName,
@@ -217,48 +204,45 @@ class Database extends AbstractAdapter
     }
 
     /**
-     * @param  string  $roleName
-     * @return boolean
+     * @param  string $roleName
+     * @return bool
      */
-    public function isRole($roleName): bool
+    public function isRole(string $roleName): bool
     {
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->roles} WHERE name = ?",
             DbEnum::FETCH_NUM,
-            [
-                $roleName,
-            ]
+            [$roleName]
         );
 
         return (bool) $exists[0];
     }
 
     /**
-     * @param  string  $resourceName
-     * @return boolean
+     * @param  string $componentName
+     * @return bool
      */
-    public function isResource($resourceName)
+    public function isComponent(string $componentName): bool
     {
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->resources} WHERE name = ?",
             DbEnum::FETCH_NUM,
-            [
-                $resourceName,
-            ]
+            [$componentName]
         );
 
-        return (bool) $exists[0];
+        return $exists[0] > 0;
     }
 
     /**
      * Example:
      * <code>
-     * //Add a resource to the the list allowing access to an action
-     * $acl->addResource(new Phalcon\Acl\Resource('customers'), 'search');
-     * $acl->addResource('customers', 'search');
-     * //Add a resource  with an access list
-     * $acl->addResource(new Phalcon\Acl\Resource('customers'), ['create', 'search']);
-     * $acl->addResource('customers', ['create', 'search']);
+     * //Add a component to the the list allowing access to an action
+     * $acl->addComponent(new Phalcon\Acl\Resource('customers'), 'search');
+     * $acl->addComponent('customers', 'search');
+     *
+     * //Add a component with an access list
+     * $acl->addComponent(new Phalcon\Acl\Resource('customers'), ['create', 'search']);
+     * $acl->addComponent('customers', ['create', 'search']);
      * </code>
      *
      * @param Resource|string $resource
@@ -266,18 +250,16 @@ class Database extends AbstractAdapter
      * @return boolean
      * @throws AclException
      */
-    public function addResource($resource, $accessList = null)
+    public function addComponent($resource, $accessList = null): bool
     {
-        if (!is_object($resource)) {
-            $resource = new Resource($resource);
+        if (is_string($resource)) {
+            $resource = new Component($resource);
         }
 
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->resources} WHERE name = ?",
             DbEnum::FETCH_NUM,
-            [
-                $resource->getName(),
-            ]
+            [$resource->getName()]
         );
 
         if (!$exists[0]) {
@@ -290,30 +272,23 @@ class Database extends AbstractAdapter
             );
         }
 
-        if ($accessList) {
-            return $this->addResourceAccess(
-                $resource->getName(),
-                $accessList
-            );
+        if (!empty($accessList)) {
+            return $this->addComponentAccess($resource->getName(), $accessList);
         }
 
         return true;
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param  string       $resourceName
      * @param  array|string $accessList
      * @return boolean
      * @throws AclException
      */
-    public function addResourceAccess($resourceName, $accessList)
+    public function addComponentAccess(string $resourceName, $accessList): bool
     {
         if (!$this->isResource($resourceName)) {
-            throw new AclException(
-                "Resource '{$resourceName}' does not exist in ACL"
-            );
+            throw new AclException("Resource '{$resourceName}' does not exist in ACL");
         }
 
         $sql = "SELECT COUNT(*) FROM {$this->resourcesAccesses} WHERE resources_name = ? AND access_name = ?";
@@ -347,23 +322,17 @@ class Database extends AbstractAdapter
     }
 
     /**
-     * @return Resource[]
+     * @return Component[]
      */
-    public function getResources(): array
+    public function getComponents(): array
     {
-        $resources = [];
-
-        $sql = "SELECT * FROM {$this->resources}";
-        $rows = $this->connection->fetchAll($sql, DbEnum::FETCH_ASSOC);
-
+        $components = [];
+        $rows = $this->connection->fetchAll("SELECT * FROM {$this->resources}", DbEnum::FETCH_ASSOC);
         foreach ($rows as $row) {
-            $resources[] = new Resource(
-                $row['name'],
-                $row['description']
-            );
+            $components[] = new Component($row['name'], $row['description']);
         }
 
-        return $resources;
+        return $components;
     }
 
     /**
@@ -393,7 +362,7 @@ class Database extends AbstractAdapter
      * @param string       $resourceName
      * @param array|string $accessList
      */
-    public function dropResourceAccess($resourceName, $accessList)
+    public function dropComponentAccess($resourceName, $accessList)
     {
         throw new \BadMethodCallException('Not implemented yet.');
     }
@@ -640,12 +609,12 @@ class Database extends AbstractAdapter
      * Inserts/Updates a permission in the access list
      *
      * @param  string       $roleName
-     * @param  string       $resourceName
+     * @param  string       $componentName
      * @param  array|string $access
      * @param  integer      $action
      * @throws AclException
      */
-    protected function allowOrDeny($roleName, $resourceName, $access, $action): void
+    protected function allowOrDeny(string $roleName, string $componentName, $access, int $action): void
     {
         if (!$this->isRole($roleName)) {
             throw new AclException(
@@ -658,7 +627,7 @@ class Database extends AbstractAdapter
         }
 
         foreach ($access as $accessName) {
-            $this->insertOrUpdateAccess($roleName, $resourceName, $accessName, $action);
+            $this->insertOrUpdateAccess($roleName, $componentName, $accessName, $action);
         }
     }
 }
