@@ -1,4 +1,4 @@
-# Phalcon\Incubator\Acl\Adapter
+# Phalcon\Incubator\Acl
 
 Usage examples of the adapters available here:
 
@@ -7,7 +7,7 @@ Usage examples of the adapters available here:
 This adapter uses a database to store the ACL list:
 
 ```php
-use Phalcon\Acl\Adapter\Database as AclDb;
+use Phalcon\Incubator\Acl\Adapter\Database as AclDb;
 use Phalcon\Db\Adapter\Pdo\Sqlite;
 
 $connection = new Sqlite(
@@ -98,3 +98,11 @@ var_dump(
     $acl->isAllowed('Admins', 'Products', 'update')
 );
 ```
+
+## MongoDB
+
+TODO
+
+## Redis
+
+TODO
