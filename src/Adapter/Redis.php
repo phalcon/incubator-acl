@@ -16,7 +16,7 @@ namespace Phalcon\Incubator\Acl\Adapter;
 use Phalcon\Acl;
 use Phalcon\Acl\Role;
 use Phalcon\Acl\Adapter;
-use Phalcon\Acl\Exception;
+use Phalcon\Acl\Exception as AclException;
 use Phalcon\Acl\Resource;
 use Phalcon\Acl\RoleInterface;
 
@@ -60,8 +60,6 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * Example:
      * <code>$acl->addRole(new Phalcon\Acl\Role('administrator'), 'consultor');</code>
      * <code>$acl->addRole('administrator', 'consultor');</code>
@@ -69,7 +67,7 @@ class Redis extends Adapter
      * @param  \Phalcon\Acl\Role|string $role
      * @param  string $accessInherits
      * @return boolean
-     * @throws \Phalcon\Acl\Exception
+     * @throws AclException
      */
     public function addRole($role, $accessInherits = null)
     {
@@ -81,7 +79,7 @@ class Redis extends Adapter
         }
 
         if (!$role instanceof RoleInterface) {
-            throw new Exception(
+            throw new AclException(
                 'Role must be either an string or implement RoleInterface'
             );
         }
@@ -109,24 +107,23 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * Example:
      * //Administrator implicitly inherits all descendants of 'consultor' unless explicity set in an Array
      * <code>$acl->addInherit('administrator', new Phalcon\Acl\Role('consultor'));</code>
      * <code>$acl->addInherit('administrator', 'consultor');</code>
      * <code>$acl->addInherit('administrator', ['consultor', 'poweruser']);</code>
      *
-     * @param  string $roleName
-     * @param  \Phalcon\Acl\Role|string $roleToInherit
-     * @throws \Phalcon\Acl\Exception
+     * @param string $roleName
+     * @param \Phalcon\Acl\Role|string $roleToInherit
+     * @return bool
+     * @throws AclException
      */
     public function addInherit($roleName, $roleToInherit)
     {
         $exists = $this->redis->hGet('roles', $roleName);
 
         if (!$exists) {
-            throw new Exception(
+            throw new AclException(
                 sprintf("Role '%s' does not exist in the role list", $roleName)
             );
         }
@@ -158,7 +155,6 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
      * Example:
      * <code>
      * //Add a resource to the the list allowing access to an action
@@ -169,9 +165,10 @@ class Redis extends Adapter
      * $acl->addResource('customers', ['create', 'search']);
      * </code>
      *
-     * @param  \Phalcon\Acl\Resource|string $resource
-     * @param  array|string $accessList
+     * @param \Phalcon\Acl\Resource|string $resource
+     * @param array|string $accessList
      * @return boolean
+     * @throws AclException
      */
     public function addResource($resource, $accessList = null)
     {
@@ -200,17 +197,15 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param  string $resourceName
      * @param  array|string $accessList
      * @return boolean
-     * @throws \Phalcon\Acl\Exception
+     * @throws AclException
      */
     public function addResourceAccess($resourceName, $accessList)
     {
         if (!$this->isResource($resourceName)) {
-            throw new Exception(
+            throw new AclException(
                 "Resource '" . $resourceName . "' does not exist in ACL"
             );
         }
@@ -227,8 +222,6 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param  string $roleName
      * @return boolean
      */
@@ -238,8 +231,6 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param  string $resourceName
      * @return boolean
      */
@@ -257,8 +248,6 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @return \Phalcon\Acl\Resource[]
      */
     public function getResources()
@@ -273,8 +262,6 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @return RoleInterface[]
      */
     public function getRoles()
@@ -303,8 +290,6 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param string $resource
      * @param array|string $accessList
      */
@@ -326,7 +311,6 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
      * You can use '*' as wildcard
      * Example:
      * <code>
@@ -344,6 +328,7 @@ class Redis extends Adapter
      * @param string $resource
      * @param array|string $access
      * @param mixed $func
+     * @throws AclException
      */
     public function allow($role, $resource, $access, $func = null)
     {
@@ -377,7 +362,7 @@ class Redis extends Adapter
      * @param $role
      * @param $access
      * @param $allowOrDeny
-     * @throws Exception
+     * @throws AclException
      */
     protected function resourcePermission($role, $access, $allowOrDeny)
     {
@@ -394,7 +379,7 @@ class Redis extends Adapter
      * @param $resource
      * @param $access
      * @param $allowOrDeny
-     * @throws Exception
+     * @throws AclException
      */
     protected function rolePermission($resource, $access, $allowOrDeny)
     {
@@ -408,7 +393,6 @@ class Redis extends Adapter
     }
 
     /**
-     * {@inheritdoc}
      * You can use '*' as wildcard
      * Example:
      * <code>
@@ -422,10 +406,11 @@ class Redis extends Adapter
      * $acl->deny('*', '*', 'browse');
      * </code>
      *
-     * @param  string $roleName
-     * @param  string $resourceName
-     * @param  array|string $access
-     * @param  mixed $func
+     * @param $role
+     * @param $resource
+     * @param array|string $access
+     * @param mixed $func
+     * @throws AclException
      */
     public function deny($role, $resource, $access, $func = null)
     {
@@ -572,7 +557,7 @@ class Redis extends Adapter
      * @param  string $resourceName
      * @param  array|string $access
      * @param  integer $action
-     * @throws \Phalcon\Acl\Exception
+     * @throws AclException
      */
     protected function allowOrDeny($roleName, $resourceName, $access, $action)
     {

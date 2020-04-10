@@ -14,8 +14,8 @@ declare(strict_types=1);
 namespace Phalcon\Incubator\Acl\Adapter;
 
 use Phalcon\Acl\Enum;
-use Phalcon\Acl\Exception;
-use Phalcon\Acl\Resource;
+use Phalcon\Acl\Exception as AclException;
+use Phalcon\Acl\Component;
 use Phalcon\Acl\Adapter\AbstractAdapter;
 use Phalcon\Acl\Role;
 use Phalcon\Acl\RoleInterface;
@@ -71,12 +71,12 @@ class Database extends AbstractAdapter
      * Class constructor.
      *
      * @param  array $options Adapter config
-     * @throws Exception
+     * @throws AclException
      */
     public function __construct(array $options)
     {
         if (!isset($options['db']) || !$options['db'] instanceof DbAdapter) {
-            throw new Exception(
+            throw new AclException(
                 'Parameter "db" is required and it must be an instance of Phalcon\Acl\AdapterInterface'
             );
         }
@@ -93,7 +93,7 @@ class Database extends AbstractAdapter
 
         foreach ($tables as $table) {
             if (!isset($options[$table]) || empty($options[$table]) || !is_string($options[$table])) {
-                throw new Exception(
+                throw new AclException(
                     "Parameter '{$table}' is required and it must be a non empty string"
                 );
             }
@@ -105,8 +105,6 @@ class Database extends AbstractAdapter
     }
 
     /**
-     * {@inheritdoc}
-     *
      * Example:
      * <code>
      * $acl->addRole(new Phalcon\Acl\Role('administrator'), 'consultor');
@@ -116,7 +114,7 @@ class Database extends AbstractAdapter
      * @param  \Phalcon\Acl\Role|string $role
      * @param  string                   $accessInherits
      * @return boolean
-     * @throws Exception
+     * @throws AclException
      */
     public function addRole($role, $accessInherits = null): bool
     {
@@ -128,7 +126,7 @@ class Database extends AbstractAdapter
         }
 
         if (!$role instanceof RoleInterface) {
-            throw new Exception(
+            throw new AclException(
                 'Role must be either an string or implement RoleInterface'
             );
         }
@@ -156,7 +154,7 @@ class Database extends AbstractAdapter
                     $role->getName(),
                     '*',
                     '*',
-                    $this->_defaultAccess,
+                    $this->defaultAccess,
                 ]
             );
         }
@@ -175,7 +173,7 @@ class Database extends AbstractAdapter
      * @param string $roleName
      * @param string $roleToInherit
      * @return bool
-     * @throws Exception
+     * @throws AclException
      */
     public function addInherit($roleName, $roleToInherit): bool
     {
@@ -190,7 +188,7 @@ class Database extends AbstractAdapter
         );
 
         if (!$exists[0]) {
-            throw new Exception(
+            throw new AclException(
                 "Role '{$roleName}' does not exist in the role list"
             );
         }
@@ -265,7 +263,6 @@ class Database extends AbstractAdapter
      * @param Resource|string $resource
      * @param array|string $accessList
      * @return boolean
-     * @throws Exception
      */
     public function addResource($resource, $accessList = null)
     {
@@ -307,12 +304,12 @@ class Database extends AbstractAdapter
      * @param  string       $resourceName
      * @param  array|string $accessList
      * @return boolean
-     * @throws Exception
+     * @throws AclException
      */
     public function addResourceAccess($resourceName, $accessList)
     {
         if (!$this->isResource($resourceName)) {
-            throw new Exception(
+            throw new AclException(
                 "Resource '{$resourceName}' does not exist in ACL"
             );
         }
@@ -421,7 +418,6 @@ class Database extends AbstractAdapter
      * @param string $resourceName
      * @param array|string $access
      * @param mixed $func
-     * @throws Exception
      */
     public function allow($roleName, $resourceName, $access, $func = null)
     {
@@ -447,7 +443,6 @@ class Database extends AbstractAdapter
      * @param array|string $access
      * @param mixed $func
      * @return void
-     * @throws Exception
      */
     public function deny($roleName, $resourceName, $access, $func = null)
     {
@@ -515,7 +510,7 @@ class Database extends AbstractAdapter
         /**
          * Return the default access action
          */
-        return $this->_defaultAccess;
+        return $this->defaultAccess;
     }
 
     /**
@@ -547,7 +542,7 @@ class Database extends AbstractAdapter
      * @param  string  $resourceName
      * @param  string  $accessName
      * @param  integer $action
-     * @throws Exception
+     * @throws AclException
      */
     protected function insertOrUpdateAccess($roleName, $resourceName, $accessName, $action): void
     {
@@ -567,7 +562,7 @@ class Database extends AbstractAdapter
             );
 
             if (!$exists[0]) {
-                throw new Exception(
+                throw new AclException(
                     "Access '{$accessName}' does not exist in resource '{$resourceName}' in ACL"
                 );
             }
@@ -637,7 +632,7 @@ class Database extends AbstractAdapter
                     $roleName,
                     $resourceName,
                     '*',
-                    $this->_defaultAccess,
+                    $this->defaultAccess,
                 ]
             );
         }
@@ -650,12 +645,12 @@ class Database extends AbstractAdapter
      * @param  string       $resourceName
      * @param  array|string $access
      * @param  integer      $action
-     * @throws Exception
+     * @throws AclException
      */
     protected function allowOrDeny($roleName, $resourceName, $access, $action): void
     {
         if (!$this->isRole($roleName)) {
-            throw new Exception(
+            throw new AclException(
                 "Role '{$roleName}' does not exist in the list"
             );
         }
