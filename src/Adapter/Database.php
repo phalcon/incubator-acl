@@ -20,6 +20,7 @@ use Phalcon\Acl\Adapter\AbstractAdapter;
 use Phalcon\Acl\Role;
 use Phalcon\Acl\RoleInterface;
 use Phalcon\Db\Adapter\AdapterInterface as DbAdapter;
+use Phalcon\Db\Enum as DbEnum;
 
 /**
  * Manages ACL lists in database tables
@@ -111,7 +112,7 @@ class Database extends AbstractAdapter
      * $acl->addRole('administrator', 'consultor');
      * </code>
      *
-     * @param  \Phalcon\Acl\Role|string $role
+     * @param Role|string $role
      * @param  string                   $accessInherits
      * @return boolean
      * @throws AclException
@@ -133,7 +134,7 @@ class Database extends AbstractAdapter
 
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->roles} WHERE name = ?",
-            null,
+            DbEnum::FETCH_NUM,
             [
                 $role->getName(),
             ]
@@ -181,7 +182,7 @@ class Database extends AbstractAdapter
 
         $exists = $this->connection->fetchOne(
             $sql,
-            null,
+            DbEnum::FETCH_NUM,
             [
                 $roleName,
             ]
@@ -195,7 +196,7 @@ class Database extends AbstractAdapter
 
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->rolesInherits} WHERE roles_name = ? AND roles_inherit = ?",
-            null,
+            DbEnum::FETCH_NUM,
             [
                 $roleName,
                 $roleToInherit,
@@ -223,7 +224,7 @@ class Database extends AbstractAdapter
     {
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->roles} WHERE name = ?",
-            null,
+            DbEnum::FETCH_NUM,
             [
                 $roleName,
             ]
@@ -240,7 +241,7 @@ class Database extends AbstractAdapter
     {
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->resources} WHERE name = ?",
-            null,
+            DbEnum::FETCH_NUM,
             [
                 $resourceName,
             ]
@@ -263,6 +264,7 @@ class Database extends AbstractAdapter
      * @param Resource|string $resource
      * @param array|string $accessList
      * @return boolean
+     * @throws AclException
      */
     public function addResource($resource, $accessList = null)
     {
@@ -272,7 +274,7 @@ class Database extends AbstractAdapter
 
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->resources} WHERE name = ?",
-            null,
+            DbEnum::FETCH_NUM,
             [
                 $resource->getName(),
             ]
@@ -323,7 +325,7 @@ class Database extends AbstractAdapter
         foreach ($accessList as $accessName) {
             $exists = $this->connection->fetchOne(
                 $sql,
-                null,
+                DbEnum::FETCH_NUM,
                 [
                     $resourceName,
                     $accessName,
@@ -352,11 +354,7 @@ class Database extends AbstractAdapter
         $resources = [];
 
         $sql = "SELECT * FROM {$this->resources}";
-
-        $rows = $this->connection->fetchAll(
-            $sql,
-            \Phalcon\Db\Enum::FETCH_ASSOC
-        );
+        $rows = $this->connection->fetchAll($sql, DbEnum::FETCH_ASSOC);
 
         foreach ($rows as $row) {
             $resources[] = new Resource(
@@ -378,7 +376,7 @@ class Database extends AbstractAdapter
 
         $rows = $this->connection->fetchAll(
             $sql,
-            Db::FETCH_ASSOC
+            DbEnum::FETCH_ASSOC
         );
 
         foreach ($rows as $row) {
@@ -418,6 +416,7 @@ class Database extends AbstractAdapter
      * @param string $resourceName
      * @param array|string $access
      * @param mixed $func
+     * @throws AclException
      */
     public function allow($roleName, $resourceName, $access, $func = null)
     {
@@ -443,6 +442,7 @@ class Database extends AbstractAdapter
      * @param array|string $access
      * @param mixed $func
      * @return void
+     * @throws AclException
      */
     public function deny($roleName, $resourceName, $access, $func = null)
     {
@@ -484,7 +484,7 @@ class Database extends AbstractAdapter
                 "AND resources_name IN (?, '*')",
                 // access_name should be given one or 'any'
                 "AND access_name IN (?, '*')",
-                // order be the sum of bools for 'literals' before 'any'
+                // order be the sum of booleans for 'literals' before 'any'
                 "ORDER BY " . $this->connection->escapeIdentifier('allowed') . " DESC",
                 // get only one...
                 'LIMIT 1',
@@ -494,7 +494,7 @@ class Database extends AbstractAdapter
         // fetch one entry...
         $allowed = $this->connection->fetchOne(
             $sql,
-            \Phalcon\Db\Enum::FETCH_NUM,
+            DbEnum::FETCH_NUM,
             [
                 $role,
                 $role,
@@ -554,7 +554,7 @@ class Database extends AbstractAdapter
 
             $exists = $this->connection->fetchOne(
                 $sql,
-                null,
+                DbEnum::FETCH_NUM,
                 [
                     $resourceName,
                     $accessName,
@@ -576,7 +576,7 @@ class Database extends AbstractAdapter
 
         $exists = $this->connection->fetchOne(
             $sql,
-            null,
+            DbEnum::FETCH_NUM,
             [
                 $roleName,
                 $resourceName,
@@ -615,7 +615,7 @@ class Database extends AbstractAdapter
 
         $exists = $this->connection->fetchOne(
             $sql,
-            null,
+            DbEnum::FETCH_NUM,
             [
                 $roleName,
                 $resourceName,
@@ -624,10 +624,8 @@ class Database extends AbstractAdapter
         );
 
         if (!$exists[0]) {
-            $sql = "INSERT INTO {$this->accessList} VALUES (?, ?, ?, ?)";
-
             $this->connection->execute(
-                $sql,
+                "INSERT INTO {$this->accessList} VALUES (?, ?, ?, ?)",
                 [
                     $roleName,
                     $resourceName,
