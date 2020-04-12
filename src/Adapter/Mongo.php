@@ -56,12 +56,12 @@ class Mongo extends AbstractAdapter
             throw new AclException("Parameter 'roles' is required");
         }
 
-        if (!isset($options['resources'])) {
-            throw new AclException("Parameter 'resources' is required");
+        if (!isset($options['components'])) {
+            throw new AclException("Parameter 'components' is required");
         }
 
-        if (!isset($options['resourcesAccesses'])) {
-            throw new AclException("Parameter 'resourcesAccesses' is required");
+        if (!isset($options['componentsAccesses'])) {
+            throw new AclException("Parameter 'componentsAccesses' is required");
         }
 
         if (!isset($options['accessList'])) {
@@ -108,7 +108,7 @@ class Mongo extends AbstractAdapter
             $this->getCollection('accessList')->insert(
                 [
                     'roles_name'     => $role->getName(),
-                    'resources_name' => '*',
+                    'components_name' => '*',
                     'access_name'    => '*',
                     'allowed'        => $this->defaultAccess,
                 ]
@@ -143,28 +143,28 @@ class Mongo extends AbstractAdapter
     }
 
     /**
-     * @param  string $resourceName
+     * @param  string $componentName
      * @return boolean
      */
-    public function isComponent($resourceName): bool
+    public function isComponent($componentName): bool
     {
-        return $this->getCollection('resources')->count(['name' => $resourceName]) > 0;
+        return $this->getCollection('components')->count(['name' => $componentName]) > 0;
     }
 
     /**
      * Example:
      *
      * <code>
-     * //Add a resource to the the list allowing access to an action
+     * //Add a component to the the list allowing access to an action
      * $acl->addComponent(new Phalcon\Acl\Resource('customers'), 'search');
      * $acl->addComponent('customers', 'search');
      *
-     * //Add a resource  with an access list
+     * //Add a component  with an access list
      * $acl->addComponent(new Phalcon\Acl\Resource('customers'), ['create', 'search']);
      * $acl->addComponent('customers', ['create', 'search']);
      * </code>
      *
-     * @param  mixed $resource
+     * @param  mixed $component
      * @param  mixed $accessList
      * @return boolean
      * @throws AclException
@@ -172,32 +172,32 @@ class Mongo extends AbstractAdapter
      * @throws \MongoCursorTimeoutException
      * @throws \MongoException
      */
-    public function addComponent($resource, $accessList = null): bool
+    public function addComponent($component, $accessList = null): bool
     {
-        if (is_string($resource)) {
-            $resource = new Component($resource);
+        if (is_string($component)) {
+            $component = new Component($component);
         }
 
-        $resources = $this->getCollection('resources');
-        $exists = $resources->count(['name' => $resource->getName()]);
+        $components = $this->getCollection('components');
+        $exists = $components->count(['name' => $component->getName()]);
         if (!$exists) {
-            $resources->insert(
+            $components->insert(
                 [
-                    'name'        => $resource->getName(),
-                    'description' => $resource->getDescription(),
+                    'name'        => $component->getName(),
+                    'description' => $component->getDescription(),
                 ]
             );
         }
 
         if ($accessList) {
-            return $this->addComponentAccess($resource->getName(), $accessList);
+            return $this->addComponentAccess($component->getName(), $accessList);
         }
 
         return true;
     }
 
     /**
-     * @param string $resourceName
+     * @param string $componentName
      * @param array|string $accessList
      * @return boolean
      * @throws AclException
@@ -205,30 +205,30 @@ class Mongo extends AbstractAdapter
      * @throws \MongoCursorTimeoutException
      * @throws \MongoException
      */
-    public function addComponentAccess($resourceName, $accessList): bool
+    public function addComponentAccess($componentName, $accessList): bool
     {
-        if (!$this->isComponent($resourceName)) {
-            throw new AclException("Resource '" . $resourceName . "' does not exist in ACL");
+        if (!$this->isComponent($componentName)) {
+            throw new AclException("Resource '" . $componentName . "' does not exist in ACL");
         }
 
-        $resourcesAccesses = $this->getCollection('resourcesAccesses');
+        $componentsAccesses = $this->getCollection('componentsAccesses');
 
         if (is_string($accessList)) {
             $accessList = [$accessList];
         }
 
         foreach ($accessList as $accessName) {
-            $exists = $resourcesAccesses->count(
+            $exists = $componentsAccesses->count(
                 [
-                    'resources_name' => $resourceName,
+                    'components_name' => $componentName,
                     'access_name'    => $accessName,
                 ]
             );
 
             if (!$exists) {
-                $resourcesAccesses->insert(
+                $componentsAccesses->insert(
                     [
-                        'resources_name' => $resourceName,
+                        'components_name' => $componentName,
                         'access_name'    => $accessName,
                     ]
                 );
@@ -244,7 +244,7 @@ class Mongo extends AbstractAdapter
     public function getComponents(): array
     {
         $data = [];
-        foreach ($this->getCollection('resources')->find() as $row) {
+        foreach ($this->getCollection('components')->find() as $row) {
             $data[] = new Component($row['name'], $row['description']);
         }
 
@@ -265,10 +265,10 @@ class Mongo extends AbstractAdapter
     }
 
     /**
-     * @param string       $resourceName
+     * @param string       $componentName
      * @param array|string $accessList
      */
-    public function dropComponentAccess($resourceName, $accessList): void
+    public function dropComponentAccess($componentName, $accessList): void
     {
         throw new \BadMethodCallException('Not implemented yet.');
     }
@@ -283,12 +283,12 @@ class Mongo extends AbstractAdapter
      * $acl->allow('guests', 'customers', ['search', 'create']);
      * //Allow access to any role to browse on products
      * $acl->allow('*', 'products', 'browse');
-     * //Allow access to any role to browse on any resource
+     * //Allow access to any role to browse on any component
      * $acl->allow('*', '*', 'browse');
      * </code>
      *
      * @param string $roleName
-     * @param string $resourceName
+     * @param string $componentName
      * @param mixed $access
      * @param mixed $func
      * @throws AclException
@@ -296,9 +296,9 @@ class Mongo extends AbstractAdapter
      * @throws \MongoCursorTimeoutException
      * @throws \MongoException
      */
-    public function allow($roleName, $resourceName, $access, $func = null): void
+    public function allow($roleName, $componentName, $access, $func = null): void
     {
-        $this->allowOrDeny($roleName, $resourceName, $access, AclEnum::ALLOW);
+        $this->allowOrDeny($roleName, $componentName, $access, AclEnum::ALLOW);
     }
 
     /**
@@ -311,12 +311,12 @@ class Mongo extends AbstractAdapter
      * $acl->deny('guests', 'customers', ['search', 'create']);
      * //Deny access to any role to browse on products
      * $acl->deny('*', 'products', 'browse');
-     * //Deny access to any role to browse on any resource
+     * //Deny access to any role to browse on any component
      * $acl->deny('*', '*', 'browse');
      * </code>
      *
      * @param string $roleName
-     * @param string $resourceName
+     * @param string $componentName
      * @param mixed $access
      * @param mixed $func
      * @return void
@@ -325,34 +325,34 @@ class Mongo extends AbstractAdapter
      * @throws \MongoCursorTimeoutException
      * @throws \MongoException
      */
-    public function deny($roleName, $resourceName, $access, $func = null): void
+    public function deny($roleName, $componentName, $access, $func = null): void
     {
-        $this->allowOrDeny($roleName, $resourceName, $access, Acl::DENY);
+        $this->allowOrDeny($roleName, $componentName, $access, Acl::DENY);
     }
 
     /**
      * Example:
      * <code>
-     * //Does Andres have access to the customers resource to create?
+     * //Does Andres have access to the customers component to create?
      * $acl->isAllowed('Andres', 'Products', 'create');
-     * //Do guests have access to any resource to edit?
+     * //Do guests have access to any component to edit?
      * $acl->isAllowed('guests', '*', 'edit');
      * </code>
      *
      * @param  string  $role
-     * @param  string  $resource
+     * @param  string  $component
      * @param  string  $access
      * @param array    $parameters
      * @return boolean
      */
-    public function isAllowed($role, $resource, $access, array $parameters = null): bool
+    public function isAllowed($role, $component, $access, array $parameters = null): bool
     {
         $accessList = $this->getCollection('accessList');
 
         $access = $accessList->findOne(
             [
                 'roles_name'     => $role,
-                'resources_name' => $resource,
+                'components_name' => $component,
                 'access_name'    => $access,
             ]
         );
@@ -362,12 +362,12 @@ class Mongo extends AbstractAdapter
         }
 
         /**
-         * Check if there is an common rule for that resource
+         * Check if there is an common rule for that component
          */
         $access = $accessList->findOne(
             [
                 'roles_name'     => $role,
-                'resources_name' => $resource,
+                'components_name' => $component,
                 'access_name'    => '*',
             ]
         );
@@ -416,7 +416,7 @@ class Mongo extends AbstractAdapter
      * Inserts/Updates a permission in the access list
      *
      * @param string $roleName
-     * @param string $resourceName
+     * @param string $componentName
      * @param string $accessName
      * @param integer $action
      * @return boolean
@@ -425,21 +425,21 @@ class Mongo extends AbstractAdapter
      * @throws \MongoCursorTimeoutException
      * @throws \MongoException
      */
-    protected function insertOrUpdateAccess($roleName, $resourceName, $accessName, $action)
+    protected function insertOrUpdateAccess($roleName, $componentName, $accessName, $action)
     {
         /**
-         * Check if the access is valid in the resource
+         * Check if the access is valid in the component
          */
-        $exists = $this->getCollection('resourcesAccesses')->count(
+        $exists = $this->getCollection('componentsAccesses')->count(
             [
-                'resources_name' => $resourceName,
+                'components_name' => $componentName,
                 'access_name'    => $accessName,
             ]
         );
 
         if (!$exists) {
             throw new AclException(
-                "Access '" . $accessName . "' does not exist in resource '" . $resourceName . "' in ACL"
+                "Access '" . $accessName . "' does not exist in component '" . $componentName . "' in ACL"
             );
         }
 
@@ -448,7 +448,7 @@ class Mongo extends AbstractAdapter
         $access = $accessList->findOne(
             [
                 'roles_name'     => $roleName,
-                'resources_name' => $resourceName,
+                'components_name' => $componentName,
                 'access_name'    => $accessName,
             ]
         );
@@ -457,7 +457,7 @@ class Mongo extends AbstractAdapter
             $accessList->insert(
                 [
                     'roles_name'     => $roleName,
-                    'resources_name' => $resourceName,
+                    'components_name' => $componentName,
                     'access_name'    => $accessName,
                     'allowed'        => $action,
                 ]
@@ -474,7 +474,7 @@ class Mongo extends AbstractAdapter
         $exists = $accessList->count(
             [
                 'roles_name'     => $roleName,
-                'resources_name' => $resourceName,
+                'components_name' => $componentName,
                 'access_name'    => '*',
             ]
         );
@@ -483,7 +483,7 @@ class Mongo extends AbstractAdapter
             $accessList->insert(
                 [
                     'roles_name'     => $roleName,
-                    'resources_name' => $resourceName,
+                    'components_name' => $componentName,
                     'access_name'    => '*',
                     'allowed'        => $this->defaultAccess,
                 ]
@@ -497,7 +497,7 @@ class Mongo extends AbstractAdapter
      * Inserts/Updates a permission in the access list
      *
      * @param string $roleName
-     * @param string $resourceName
+     * @param string $componentName
      * @param string $access
      * @param integer $action
      * @throws AclException
@@ -505,7 +505,7 @@ class Mongo extends AbstractAdapter
      * @throws \MongoCursorTimeoutException
      * @throws \MongoException
      */
-    protected function allowOrDeny($roleName, $resourceName, $access, $action)
+    protected function allowOrDeny($roleName, $componentName, $access, $action)
     {
         if (!$this->isRole($roleName)) {
             throw new AclException('Role "' . $roleName . '" does not exist in the list');
@@ -516,7 +516,7 @@ class Mongo extends AbstractAdapter
         }
 
         foreach ($access as $accessName) {
-            $this->insertOrUpdateAccess($roleName, $resourceName, $accessName, $action);
+            $this->insertOrUpdateAccess($roleName, $componentName, $accessName, $action);
         }
     }
 }
