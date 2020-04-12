@@ -13,19 +13,17 @@ declare(strict_types=1);
 
 namespace Phalcon\Incubator\Acl\Adapter;
 
-use Phalcon\Acl;
-use Phalcon\Acl\Role;
-use Phalcon\Acl\Adapter;
+use Phalcon\Acl\Adapter\AbstractAdapter;
+use Phalcon\Acl\Component;
+use Phalcon\Acl\Enum as AclEnum;
 use Phalcon\Acl\Exception as AclException;
-use Phalcon\Acl\Resource;
+use Phalcon\Acl\Role;
 use Phalcon\Acl\RoleInterface;
 
 /**
- * \Phalcon\Acl\Adapter\Redis
- *
  * Manages ACL lists in Redis Database
  */
-class Redis extends Adapter
+class Redis extends AbstractAdapter
 {
     /**
      * @var bool
@@ -41,9 +39,14 @@ class Redis extends Adapter
      * Default action for no arguments is allow
      * @var int
      */
-    protected $noArgumentsDefaultAction = Acl::ALLOW;
+    protected $noArgumentsDefaultAction = AclEnum::ALLOW;
 
-    public function __construct($redis = null)
+    /**
+     * Redis constructor.
+     *
+     * @param \Redis|null $redis
+     */
+    public function __construct(\Redis $redis = null)
     {
         $this->redis = $redis;
     }
@@ -64,43 +67,26 @@ class Redis extends Adapter
      * <code>$acl->addRole(new Phalcon\Acl\Role('administrator'), 'consultor');</code>
      * <code>$acl->addRole('administrator', 'consultor');</code>
      *
-     * @param  \Phalcon\Acl\Role|string $role
+     * @param Role|string $role
      * @param  string $accessInherits
-     * @return boolean
+     * @return bool
      * @throws AclException
      */
-    public function addRole($role, $accessInherits = null)
+    public function addRole($role, $accessInherits = null): bool
     {
         if (is_string($role)) {
-            $role = new Role(
-                $role,
-                ucwords($role) . ' Role'
-            );
+            $role = new Role($role, ucwords($role) . ' Role');
         }
 
         if (!$role instanceof RoleInterface) {
-            throw new AclException(
-                'Role must be either an string or implement RoleInterface'
-            );
+            throw new AclException('Role must be either an string or implement RoleInterface');
         }
 
-        $this->redis->hMset(
-            'roles',
-            [
-                $role->getName() => $role->getDescription(),
-            ]
-        );
-
-        $this->redis->sAdd(
-            "accessList:$role:*:{$this->getDefaultAction()}}",
-            "*"
-        );
+        $this->redis->hMset('roles', [$role->getName() => $role->getDescription()]);
+        $this->redis->sAdd("accessList:$role:*:{$this->getDefaultAction()}}", '*');
 
         if ($accessInherits) {
-            $this->addInherit(
-                $role->getName(),
-                $accessInherits
-            );
+            $this->addInherit($role->getName(), $accessInherits);
         }
 
         return true;
@@ -108,24 +94,22 @@ class Redis extends Adapter
 
     /**
      * Example:
+     *
      * //Administrator implicitly inherits all descendants of 'consultor' unless explicity set in an Array
      * <code>$acl->addInherit('administrator', new Phalcon\Acl\Role('consultor'));</code>
      * <code>$acl->addInherit('administrator', 'consultor');</code>
      * <code>$acl->addInherit('administrator', ['consultor', 'poweruser']);</code>
      *
      * @param string $roleName
-     * @param \Phalcon\Acl\Role|string $roleToInherit
+     * @param Role|string $roleToInherit
      * @return bool
      * @throws AclException
      */
-    public function addInherit($roleName, $roleToInherit)
+    public function addInherit(string $roleName, $roleToInherit): bool
     {
         $exists = $this->redis->hGet('roles', $roleName);
-
         if (!$exists) {
-            throw new AclException(
-                sprintf("Role '%s' does not exist in the role list", $roleName)
-            );
+            throw new AclException(sprintf("Role '%s' does not exist in the role list", $roleName));
         }
 
         if ($roleToInherit instanceof Role) {
@@ -151,71 +135,57 @@ class Redis extends Adapter
             }
         }
 
-        $this->redis->sAdd("rolesInherits:$roleName", $roleToInherit);
+        return (bool)$this->redis->sAdd("rolesInherits:$roleName", $roleToInherit);
     }
 
     /**
      * Example:
+     *
      * <code>
-     * //Add a resource to the the list allowing access to an action
-     * $acl->addResource(new Phalcon\Acl\Resource('customers'), 'search');
-     * $acl->addResource('customers', 'search');
-     * //Add a resource  with an access list
-     * $acl->addResource(new Phalcon\Acl\Resource('customers'), ['create', 'search']);
-     * $acl->addResource('customers', ['create', 'search']);
+     * //Add a component to the the list allowing access to an action
+     * $acl->addComponent(new Phalcon\Acl\Component('customers'), 'search');
+     * $acl->addComponent('customers', 'search');
+     *
+     * //Add a component  with an access list
+     * $acl->addComponent(new Phalcon\Acl\Component('customers'), ['create', 'search']);
+     * $acl->addComponent('customers', ['create', 'search']);
      * </code>
      *
-     * @param \Phalcon\Acl\Resource|string $resource
-     * @param array|string $accessList
-     * @return boolean
+     * @param  Component|string $component
+     * @param  array|string $accessList
+     * @return bool
      * @throws AclException
      */
-    public function addResource($resource, $accessList = null)
+    public function addComponent($component, $accessList = null): bool
     {
-        if (!is_object($resource)) {
-            $resource = new Resource(
-                $resource,
-                ucwords($resource) . " Resource"
-            );
+        if (is_string($component)) {
+            $component = new Component($component, ucwords($component) . ' Component');
         }
 
-        $this->redis->hMset(
-            "resources",
-            [
-                $resource->getName() => $resource->getDescription(),
-            ]
-        );
+        $this->redis->hMset('components', [$component->getName() => $component->getDescription()]);
 
         if ($accessList) {
-            return $this->addResourceAccess(
-                $resource->getName(),
-                $accessList
-            );
+            return $this->addComponentAccess($component->getName(), $accessList);
         }
 
         return true;
     }
 
     /**
-     * @param  string $resourceName
+     * @param  string $componentName
      * @param  array|string $accessList
      * @return boolean
      * @throws AclException
      */
-    public function addResourceAccess($resourceName, $accessList)
+    public function addComponentAccess(string $componentName, $accessList): bool
     {
-        if (!$this->isResource($resourceName)) {
-            throw new AclException(
-                "Resource '" . $resourceName . "' does not exist in ACL"
-            );
+        if (!$this->isComponent($componentName)) {
+            throw new AclException("Component '" . $componentName . "' does not exist in ACL");
         }
 
-        $accessList = (is_string($accessList)) ? explode(' ', $accessList) : $accessList;
+        $accessList = is_string($accessList) ? explode(' ', $accessList) : $accessList;
         foreach ($accessList as $accessName) {
-            $this->redis->sAdd(
-                "resourcesAccesses:$resourceName",
-                $accessName
-            );
+            $this->redis->sAdd("componentsAccesses:$componentName", $accessName);
         }
 
         return true;
@@ -223,52 +193,47 @@ class Redis extends Adapter
 
     /**
      * @param  string $roleName
-     * @return boolean
+     * @return bool
      */
-    public function isRole($roleName)
+    public function isRole($roleName): bool
     {
-        return $this->redis->hExists("roles", $roleName);
+        return $this->redis->hExists('roles', $roleName);
     }
 
     /**
-     * @param  string $resourceName
+     * @param  string $componentName
      * @return boolean
      */
-    public function isResource($resourceName)
+    public function isComponent($componentName): bool
     {
-        return $this->redis->hExists("resources", $resourceName);
+        return $this->redis->hExists('components', $componentName);
     }
 
-    public function isResourceAccess($resource, $access)
+    public function isComponentAccess($component, $access)
     {
-        return $this->redis->sIsMember(
-            "resourcesAccesses:$resource",
-            $access
-        );
+        return $this->redis->sIsMember("componentsAccesses:$component", $access);
     }
 
     /**
-     * @return \Phalcon\Acl\Resource[]
+     * @return Component[]
      */
-    public function getResources()
+    public function getComponents(): array
     {
-        $resources = [];
-
-        foreach ($this->redis->hGetAll("resources") as $name => $desc) {
-            $resources[] = new Resource($name, $desc);
+        $data = [];
+        foreach ($this->redis->hGetAll('components') as $name => $desc) {
+            $data[] = new Component($name, $desc);
         }
 
-        return $resources;
+        return $data;
     }
 
     /**
      * @return RoleInterface[]
      */
-    public function getRoles()
+    public function getRoles(): array
     {
         $roles = [];
-
-        foreach ($this->redis->hGetAll("roles") as $name => $desc) {
+        foreach ($this->redis->hGetAll('roles') as $name => $desc) {
             $roles[] = new Role($name, $desc);
         }
 
@@ -284,22 +249,22 @@ class Redis extends Adapter
         return $this->redis->sMembers("rolesInherits:$role");
     }
 
-    public function getResourceAccess($resource)
+    public function getComponentAccess($component)
     {
-        return $this->redis->sMembers("resourcesAccesses:$resource");
+        return $this->redis->sMembers("componentsAccesses:$component");
     }
 
     /**
-     * @param string $resource
+     * @param string $component
      * @param array|string $accessList
      */
-    public function dropResourceAccess($resource, $accessList)
+    public function dropComponentAccess(string $component, $accessList): void
     {
         if (!is_array($accessList)) {
-            $accessList = (array) $accessList;
+            $accessList = [$accessList];
         }
 
-        array_unshift($accessList, "resourcesAccesses:$resource");
+        array_unshift($accessList, "componentsAccesses:$component");
 
         call_user_func_array(
             [
@@ -312,7 +277,9 @@ class Redis extends Adapter
 
     /**
      * You can use '*' as wildcard
+     *
      * Example:
+     *
      * <code>
      * //Allow access to guests to search on customers
      * $acl->allow('guests', 'customers', 'search');
@@ -320,41 +287,28 @@ class Redis extends Adapter
      * $acl->allow('guests', 'customers', ['search', 'create']);
      * //Allow access to any role to browse on products
      * $acl->allow('*', 'products', 'browse');
-     * //Allow access to any role to browse on any resource
+     * //Allow access to any role to browse on any component
      * $acl->allow('*', '*', 'browse');
      * </code>
      *
      * @param string $role
-     * @param string $resource
+     * @param string $component
      * @param array|string $access
      * @param mixed $func
      * @throws AclException
      */
-    public function allow($role, $resource, $access, $func = null)
+    public function allow(string $role, string $component, $access, $func = null): void
     {
-        if ($role !== '*' && $resource !== '*') {
-            $this->allowOrDeny(
-                $role,
-                $resource,
-                $access,
-                Acl::ALLOW
-            );
+        if ($role !== '*' && $component !== '*') {
+            $this->allowOrDeny($role, $component, $access, AclEnum::ALLOW);
         }
 
         if ($role === '*' || empty($role)) {
-            $this->rolePermission(
-                $resource,
-                $access,
-                Acl::ALLOW
-            );
+            $this->rolePermission($component, $access, AclEnum::ALLOW);
         }
 
-        if ($resource === '*' || empty($resource)) {
-            $this->resourcePermission(
-                $role,
-                $access,
-                Acl::ALLOW
-            );
+        if ($component === '*' || empty($component)) {
+            $this->componentPermission($role, $access, AclEnum::ALLOW);
         }
     }
 
@@ -364,36 +318,37 @@ class Redis extends Adapter
      * @param $allowOrDeny
      * @throws AclException
      */
-    protected function resourcePermission($role, $access, $allowOrDeny)
+    protected function componentPermission($role, $access, $allowOrDeny)
     {
-        foreach ($this->getResources() as $resource) {
+        foreach ($this->getComponents() as $component) {
             if ($role === '*' || empty($role)) {
-                $this->rolePermission($resource, $access, $allowOrDeny);
+                $this->rolePermission($component, $access, $allowOrDeny);
             } else {
-                $this->allowOrDeny($role, $resource, $access, $allowOrDeny);
+                $this->allowOrDeny($role, $component, $access, $allowOrDeny);
             }
         }
     }
 
     /**
-     * @param $resource
+     * @param $component
      * @param $access
      * @param $allowOrDeny
      * @throws AclException
      */
-    protected function rolePermission($resource, $access, $allowOrDeny)
+    protected function rolePermission($component, $access, $allowOrDeny)
     {
         foreach ($this->getRoles() as $role) {
-            if ($resource === '*' || empty($resource)) {
-                $this->resourcePermission($role, $access, $allowOrDeny);
+            if ($component === '*' || empty($component)) {
+                $this->componentPermission($role, $access, $allowOrDeny);
             } else {
-                $this->allowOrDeny($role, $resource, $access, $allowOrDeny);
+                $this->allowOrDeny($role, $component, $access, $allowOrDeny);
             }
         }
     }
 
     /**
      * You can use '*' as wildcard
+     *
      * Example:
      * <code>
      * //Deny access to guests to search on customers
@@ -402,37 +357,24 @@ class Redis extends Adapter
      * $acl->deny('guests', 'customers', ['search', 'create']);
      * //Deny access to any role to browse on products
      * $acl->deny('*', 'products', 'browse');
-     * //Deny access to any role to browse on any resource
+     * //Deny access to any role to browse on any component
      * $acl->deny('*', '*', 'browse');
      * </code>
      *
      * @param $role
-     * @param $resource
+     * @param $component
      * @param array|string $access
      * @param mixed $func
      * @throws AclException
      */
-    public function deny($role, $resource, $access, $func = null)
+    public function deny($role, $component, $access, $func = null): void
     {
         if ($role === '*' || empty($role)) {
-            $this->rolePermission(
-                $resource,
-                $access,
-                Acl::DENY
-            );
-        } elseif ($resource === '*' || empty($resource)) {
-            $this->resourcePermission(
-                $role,
-                $access,
-                Acl::DENY
-            );
+            $this->rolePermission($component, $access, AclEnum::DENY);
+        } elseif ($component === '*' || empty($component)) {
+            $this->componentPermission($role, $access, AclEnum::DENY);
         } else {
-            $this->allowOrDeny(
-                $role,
-                $resource,
-                $access,
-                Acl::DENY
-            );
+            $this->allowOrDeny($role, $component, $access, AclEnum::DENY);
         }
     }
 
@@ -440,30 +382,30 @@ class Redis extends Adapter
      * {@inheritdoc}
      * Example:
      * <code>
-     * //Does Andres have access to the customers resource to create?
+     * //Does Andres have access to the customers component to create?
      * $acl->isAllowed('Andres', 'Products', 'create');
-     * //Do guests have access to any resource to edit?
+     * //Do guests have access to any component to edit?
      * $acl->isAllowed('guests', '*', 'edit');
      * </code>
      *
      * @param string $role
-     * @param string $resource
+     * @param string $component
      * @param string $access
      * @param array  $parameters
      * @return bool
      */
-    public function isAllowed($role, $resource, $access, array $parameters = null)
+    public function isAllowed($role, $component, $access, array $parameters = null): bool
     {
-        if ($this->redis->sIsMember("accessList:$role:$resource:" . Acl::ALLOW, $access)) {
-            return Acl::ALLOW;
+        if ($this->redis->sIsMember("accessList:$role:$component:" . AclEnum::ALLOW, $access)) {
+            return true;
         }
 
         if ($this->redis->exists("rolesInherits:$role")) {
             $rolesInherits = $this->redis->sMembers("rolesInherits:$role");
 
             foreach ($rolesInherits as $role) {
-                if ($this->redis->sIsMember("accessList:$role:$resource:" . Acl::ALLOW, $access)) {
-                    return Acl::ALLOW;
+                if ($this->redis->sIsMember("accessList:$role:$component:" . AclEnum::ALLOW, $access)) {
+                    return true;
                 }
             }
         }
@@ -471,8 +413,7 @@ class Redis extends Adapter
         /**
          * Return the default access action
          */
-
-        return $this->getDefaultAction();
+        return $this->getDefaultAction() === 1;
     }
 
     /**
@@ -481,7 +422,7 @@ class Redis extends Adapter
      *
      * @return int
      */
-    public function getNoArgumentsDefaultAction()
+    public function getNoArgumentsDefaultAction(): int
     {
         return $this->noArgumentsDefaultAction;
     }
@@ -492,60 +433,46 @@ class Redis extends Adapter
      *
      * @param int $defaultAccess Phalcon\Acl::ALLOW or Phalcon\Acl::DENY
      */
-    public function setNoArgumentsDefaultAction($defaultAccess)
+    public function setNoArgumentsDefaultAction($defaultAccess): void
     {
         $this->noArgumentsDefaultAction = intval($defaultAccess);
     }
 
     /**
      * @param $roleName
-     * @param $resourceName
+     * @param $componentName
      * @param $accessName
      * @param $action
      * @return bool
-     * @throws Exception
+     * @throws AclException
      */
-    protected function setAccess($roleName, $resourceName, $accessName, $action)
+    protected function setAccess($roleName, $componentName, $accessName, $action)
     {
         /**
-         * Check if the access is valid in the resource
+         * Check if the access is valid in the component
          */
-        if ($this->isResourceAccess($resourceName, $accessName)) {
+        if ($this->isComponentAccess($componentName, $accessName)) {
             if (!$this->setNXAccess) {
-                throw new Exception(
-                    "Access '" . $accessName . "' does not exist in resource '" . $resourceName . "' in ACL"
+                throw new AclException(
+                    "Access '" . $accessName . "' does not exist in component '" . $componentName . "' in ACL"
                 );
             }
 
-            $this->addResourceAccess($resourceName, $accessName);
+            $this->addComponentAccess($componentName, $accessName);
         }
 
-        $this->redis->sAdd(
-            "accessList:$roleName:$resourceName:$action",
-            $accessName
-        );
+        $this->redis->sAdd("accessList:$roleName:$componentName:$action", $accessName);
 
-        $accessList = "accessList:$roleName:$resourceName";
+        $accessList = "accessList:$roleName:$componentName";
 
         // remove first if exists
         foreach ([1, 2] as $act) {
-            $this->redis->sRem(
-                "$accessList:$act",
-                $accessName
-            );
-
-            $this->redis->sRem(
-                "$accessList:$act",
-                "*"
-            );
+            $this->redis->sRem("$accessList:$act", $accessName);
+            $this->redis->sRem("$accessList:$act", "*");
         }
 
         $this->redis->sAdd("$accessList:$action", $accessName);
-
-        $this->redis->sAdd(
-            "$accessList:{$this->getDefaultAction()}",
-            "*"
-        );
+        $this->redis->sAdd("$accessList:{$this->getDefaultAction()}", "*");
 
         return true;
     }
@@ -554,38 +481,29 @@ class Redis extends Adapter
      * Inserts/Updates a permission in the access list
      *
      * @param  string $roleName
-     * @param  string $resourceName
+     * @param  string $componentName
      * @param  array|string $access
      * @param  integer $action
      * @throws AclException
      */
-    protected function allowOrDeny($roleName, $resourceName, $access, $action)
+    protected function allowOrDeny($roleName, $componentName, $access, $action)
     {
         if (!$this->isRole($roleName)) {
-            throw new Exception(
-                'Role "' . $roleName . '" does not exist in the list'
-            );
+            throw new AclException('Role "' . $roleName . '" does not exist in the list');
         }
 
-        if (!$this->isResource($resourceName)) {
-            throw new Exception(
-                'Resource "' . $resourceName . '" does not exist in the list'
-            );
+        if (!$this->isComponent($componentName)) {
+            throw new AclException('Component "' . $componentName . '" does not exist in the list');
         }
 
-        $access = ($access === '*' || empty($access)) ? $this->getResourceAccess($resourceName) : $access;
+        $access = ($access === '*' || empty($access)) ? $this->getComponentAccess($componentName) : $access;
 
         if (is_array($access)) {
             foreach ($access as $accessName) {
-                $this->setAccess(
-                    $roleName,
-                    $resourceName,
-                    $accessName,
-                    $action
-                );
+                $this->setAccess($roleName, $componentName, $accessName, $action);
             }
         } else {
-            $this->setAccess($roleName, $resourceName, $access, $action);
+            $this->setAccess($roleName, $componentName, $access, $action);
         }
     }
 }
