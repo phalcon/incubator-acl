@@ -245,15 +245,6 @@ class Redis extends AbstractAdapter
         return $roles;
     }
 
-    /**
-     * @param $role
-     * @return array
-     */
-    public function getRoleInherits($role)
-    {
-        return $this->redis->sMembers("rolesInherits:$role");
-    }
-
     public function getComponentAccess($component)
     {
         return $this->redis->sMembers("componentsAccesses:$component");
@@ -298,7 +289,7 @@ class Redis extends AbstractAdapter
      *
      * @param string $role
      * @param string $component
-     * @param array|string $access
+     * @param mixed $access
      * @param mixed $func
      * @throws AclException
      */
@@ -332,13 +323,13 @@ class Redis extends AbstractAdapter
      * $acl->deny('*', '*', 'browse');
      * </code>
      *
-     * @param $role
-     * @param $component
-     * @param array|string $access
+     * @param string $role
+     * @param string $component
+     * @param mixed $access
      * @param mixed $func
      * @throws AclException
      */
-    public function deny($role, $component, $access, $func = null): void
+    public function deny(string $role, string $component, $access, $func = null): void
     {
         if ($role === '*' || empty($role)) {
             $this->rolePermission($component, $access, AclEnum::DENY);
@@ -410,14 +401,14 @@ class Redis extends AbstractAdapter
     }
 
     /**
-     * @param $roleName
-     * @param $componentName
-     * @param $accessName
-     * @param $action
+     * @param string $roleName
+     * @param string $componentName
+     * @param mixed  $accessName
+     * @param int    $action
      * @return bool
      * @throws AclException
      */
-    protected function setAccess($roleName, $componentName, $accessName, $action)
+    protected function setAccess(string $roleName, string $componentName, $accessName, int $action)
     {
         /**
          * Check if the access is valid in the component
@@ -501,7 +492,7 @@ class Redis extends AbstractAdapter
      * @param int $allowOrDeny
      * @throws AclException
      */
-    protected function rolePermission(string $component, mixed $access, int $allowOrDeny): void
+    protected function rolePermission(string $component, $access, int $allowOrDeny): void
     {
         foreach ($this->getRoles() as $role) {
             if ($component === '*' || empty($component)) {
