@@ -40,14 +40,14 @@ class Database extends AbstractAdapter
     protected $roles;
 
     /**
-     * Resources table
+     * Components table
      *
      * @var string
      */
     protected $components;
 
     /**
-     * Resources Accesses table
+     * Components Accesses table
      *
      * @var string
      */
@@ -243,11 +243,11 @@ class Database extends AbstractAdapter
      * Example:
      * <code>
      * //Add a component to the the list allowing access to an action
-     * $acl->addComponent(new Phalcon\Acl\Resource('customers'), 'search');
+     * $acl->addComponent(new Phalcon\Acl\Component('customers'), 'search');
      * $acl->addComponent('customers', 'search');
      *
      * //Add a component with an access list
-     * $acl->addComponent(new Phalcon\Acl\Resource('customers'), ['create', 'search']);
+     * $acl->addComponent(new Phalcon\Acl\Component('customers'), ['create', 'search']);
      * $acl->addComponent('customers', ['create', 'search']);
      * </code>
      *
@@ -293,8 +293,8 @@ class Database extends AbstractAdapter
      */
     public function addComponentAccess(string $componentName, $accessList): bool
     {
-        if (!$this->isResource($componentName)) {
-            throw new AclException("Resource '{$componentName}' does not exist in ACL");
+        if (!$this->isComponent($componentName)) {
+            throw new AclException("Component '{$componentName}' does not exist in ACL");
         }
 
         $sql = "SELECT COUNT(*) FROM {$this->componentsAccesses} WHERE components_name = ? AND access_name = ?";

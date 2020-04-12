@@ -453,11 +453,11 @@ class Redis extends AbstractAdapter
      *
      * @param  string $roleName
      * @param  string $componentName
-     * @param  array|string $access
-     * @param  integer $action
+     * @param  mixed $access
+     * @param  int $action
      * @throws AclException
      */
-    protected function allowOrDeny($roleName, $componentName, $access, $action)
+    protected function allowOrDeny(string $roleName, string $componentName, $access, int $action): void
     {
         if (!$this->isRole($roleName)) {
             throw new AclException('Role "' . $roleName . '" does not exist in the list');
@@ -479,35 +479,35 @@ class Redis extends AbstractAdapter
     }
 
     /**
-     * @param $role
-     * @param $access
-     * @param $allowOrDeny
+     * @param string $role
+     * @param mixed $access
+     * @param int $allowOrDeny
      * @throws AclException
      */
-    protected function componentPermission($role, $access, $allowOrDeny)
+    protected function componentPermission(string $role, $access, int $allowOrDeny): void
     {
         foreach ($this->getComponents() as $component) {
             if ($role === '*' || empty($role)) {
-                $this->rolePermission($component, $access, $allowOrDeny);
+                $this->rolePermission($component->getName(), $access, $allowOrDeny);
             } else {
-                $this->allowOrDeny($role, $component, $access, $allowOrDeny);
+                $this->allowOrDeny($role, $component->getName(), $access, $allowOrDeny);
             }
         }
     }
 
     /**
-     * @param $component
-     * @param $access
-     * @param $allowOrDeny
+     * @param string $component
+     * @param mixed $access
+     * @param int $allowOrDeny
      * @throws AclException
      */
-    protected function rolePermission($component, $access, $allowOrDeny)
+    protected function rolePermission(string $component, mixed $access, int $allowOrDeny): void
     {
         foreach ($this->getRoles() as $role) {
             if ($component === '*' || empty($component)) {
-                $this->componentPermission($role, $access, $allowOrDeny);
+                $this->componentPermission($role->getName(), $access, $allowOrDeny);
             } else {
-                $this->allowOrDeny($role, $component, $access, $allowOrDeny);
+                $this->allowOrDeny($role->getName(), $component, $access, $allowOrDeny);
             }
         }
     }

@@ -156,11 +156,11 @@ class Mongo extends AbstractAdapter
      *
      * <code>
      * //Add a component to the the list allowing access to an action
-     * $acl->addComponent(new Phalcon\Acl\Resource('customers'), 'search');
+     * $acl->addComponent(new Phalcon\Acl\Component('customers'), 'search');
      * $acl->addComponent('customers', 'search');
      *
      * //Add a component  with an access list
-     * $acl->addComponent(new Phalcon\Acl\Resource('customers'), ['create', 'search']);
+     * $acl->addComponent(new Phalcon\Acl\Component('customers'), ['create', 'search']);
      * $acl->addComponent('customers', ['create', 'search']);
      * </code>
      *
@@ -208,7 +208,7 @@ class Mongo extends AbstractAdapter
     public function addComponentAccess($componentName, $accessList): bool
     {
         if (!$this->isComponent($componentName)) {
-            throw new AclException("Resource '" . $componentName . "' does not exist in ACL");
+            throw new AclException("Component '" . $componentName . "' does not exist in ACL");
         }
 
         $componentsAccesses = $this->getCollection('componentsAccesses');
