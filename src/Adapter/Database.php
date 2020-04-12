@@ -494,7 +494,7 @@ class Database extends AbstractAdapter
      * Sets the default access level for no arguments provided
      * in isAllowed action if there exists func for accessKey
      *
-     * @param int $defaultAccess Phalcon\Acl::ALLOW or Phalcon\Acl::DENY
+     * @param int $defaultAccess Phalcon\Acl\Enum::ALLOW or Phalcon\Acl\Enum::DENY
      */
     public function setNoArgumentsDefaultAction(int $defaultAccess): void
     {

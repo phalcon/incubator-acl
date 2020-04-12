@@ -70,7 +70,7 @@ Using the cache adapter:
 ```php
 // By default the action is deny access
 $acl->setDefaultAction(
-    \Phalcon\Acl::DENY
+    \Phalcon\Acl\Enum::DENY
 );
 
 // You can add roles/resources/accesses to list or insert them directly in the tables

@@ -327,7 +327,7 @@ class Mongo extends AbstractAdapter
      */
     public function deny($roleName, $componentName, $access, $func = null): void
     {
-        $this->allowOrDeny($roleName, $componentName, $access, Acl::DENY);
+        $this->allowOrDeny($roleName, $componentName, $access, AclEnum::DENY);
     }
 
     /**
@@ -394,7 +394,7 @@ class Mongo extends AbstractAdapter
      * Sets the default access level for no arguments provided
      * in isAllowed action if there exists func for accessKey
      *
-     * @param int $defaultAccess Phalcon\Acl::ALLOW or Phalcon\Acl::DENY
+     * @param int $defaultAccess Phalcon\Acl\Enum::ALLOW or Phalcon\Acl\Enum::DENY
      */
     public function setNoArgumentsDefaultAction($defaultAccess): void
     {
@@ -498,7 +498,7 @@ class Mongo extends AbstractAdapter
      *
      * @param string $roleName
      * @param string $componentName
-     * @param string $access
+     * @param mixed $access
      * @param integer $action
      * @throws AclException
      * @throws \MongoCursorException
