@@ -44,10 +44,6 @@ class Mongo extends AbstractAdapter
      */
     public function __construct(array $options)
     {
-        if (!is_array($options)) {
-            throw new AclException("Acl options must be an array");
-        }
-
         if (!isset($options['db'])) {
             throw new AclException("Parameter 'db' is required");
         }
