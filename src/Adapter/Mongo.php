@@ -13,18 +13,32 @@ declare(strict_types=1);
 
 namespace Phalcon\Incubator\Acl\Adapter;
 
+use MongoDB\Collection;
 use Phalcon\Acl\Adapter\AbstractAdapter;
 use Phalcon\Acl\Component;
 use Phalcon\Acl\Enum as AclEnum;
 use Phalcon\Acl\Exception as AclException;
 use Phalcon\Acl\Role;
 use Phalcon\Acl\RoleInterface;
+use MongoDB\Client as MongoClient;
 
 /**
  * Manages ACL lists using Mongo Collections
  */
 class Mongo extends AbstractAdapter
 {
+    /**
+     * @var MongoClient
+     */
+    protected $db;
+
+    /**
+     * MongoDB Database name
+     *
+     * @var string
+     */
+    protected $dbName;
+
     /**
      * @var array
      */
@@ -64,6 +78,8 @@ class Mongo extends AbstractAdapter
             throw new AclException("Parameter 'accessList' is required");
         }
 
+        $this->db = $options['db'];
+        $this->dbName = $options['dbName'];
         $this->options = $options;
     }
 
@@ -74,12 +90,9 @@ class Mongo extends AbstractAdapter
      * <code>$acl->addRole('administrator', 'consultor');</code>
      *
      * @param string|RoleInterface $role
-     * @param array $accessInherits
+     * @param mixed $accessInherits
      * @return bool
      * @throws AclException
-     * @throws \MongoCursorException
-     * @throws \MongoCursorTimeoutException
-     * @throws \MongoException
      */
     public function addRole($role, $accessInherits = null): bool
     {
@@ -92,23 +105,18 @@ class Mongo extends AbstractAdapter
         }
 
         $roles = $this->getCollection('roles');
-        $exists = $roles->count(['name' => $role->getName()]);
-        if (!$exists) {
-            $roles->insert(
-                [
-                    'name'        => $role->getName(),
-                    'description' => $role->getDescription(),
-                ]
-            );
+        if ($roles->countDocuments(['name' => $role->getName()]) === 0) {
+            $roles->insertOne([
+                'name'        => $role->getName(),
+                'description' => $role->getDescription(),
+            ]);
 
-            $this->getCollection('accessList')->insert(
-                [
-                    'roles_name'     => $role->getName(),
-                    'components_name' => '*',
-                    'access_name'    => '*',
-                    'allowed'        => $this->defaultAccess,
-                ]
-            );
+            $this->getCollection('accessList')->insertOne([
+                'roles_name'      => $role->getName(),
+                'components_name' => '*',
+                'access_name'     => '*',
+                'allowed'         => $this->defaultAccess,
+            ]);
         }
 
         if ($accessInherits) {
@@ -160,13 +168,10 @@ class Mongo extends AbstractAdapter
      * $acl->addComponent('customers', ['create', 'search']);
      * </code>
      *
-     * @param  mixed $component
-     * @param  mixed $accessList
-     * @return boolean
+     * @param mixed $component
+     * @param mixed $accessList
+     * @return bool
      * @throws AclException
-     * @throws \MongoCursorException
-     * @throws \MongoCursorTimeoutException
-     * @throws \MongoException
      */
     public function addComponent($component, $accessList = null): bool
     {
@@ -175,14 +180,11 @@ class Mongo extends AbstractAdapter
         }
 
         $components = $this->getCollection('components');
-        $exists = $components->count(['name' => $component->getName()]);
-        if (!$exists) {
-            $components->insert(
-                [
-                    'name'        => $component->getName(),
-                    'description' => $component->getDescription(),
-                ]
-            );
+        if ($components->countDocuments(['name' => $component->getName()]) === 0) {
+            $components->insertOne([
+                'name'        => $component->getName(),
+                'description' => $component->getDescription(),
+            ]);
         }
 
         if ($accessList) {
@@ -197,9 +199,6 @@ class Mongo extends AbstractAdapter
      * @param array|string $accessList
      * @return boolean
      * @throws AclException
-     * @throws \MongoCursorException
-     * @throws \MongoCursorTimeoutException
-     * @throws \MongoException
      */
     public function addComponentAccess($componentName, $accessList): bool
     {
@@ -214,20 +213,16 @@ class Mongo extends AbstractAdapter
         }
 
         foreach ($accessList as $accessName) {
-            $exists = $componentsAccesses->count(
-                [
+            $count = $componentsAccesses->countDocuments([
+                'components_name' => $componentName,
+                'access_name'    => $accessName,
+            ]);
+
+            if ($count === 0) {
+                $componentsAccesses->insertOne([
                     'components_name' => $componentName,
                     'access_name'    => $accessName,
-                ]
-            );
-
-            if (!$exists) {
-                $componentsAccesses->insert(
-                    [
-                        'components_name' => $componentName,
-                        'access_name'    => $accessName,
-                    ]
-                );
+                ]);
             }
         }
 
@@ -288,9 +283,6 @@ class Mongo extends AbstractAdapter
      * @param mixed $access
      * @param mixed $func
      * @throws AclException
-     * @throws \MongoCursorException
-     * @throws \MongoCursorTimeoutException
-     * @throws \MongoException
      */
     public function allow($roleName, $componentName, $access, $func = null): void
     {
@@ -317,9 +309,6 @@ class Mongo extends AbstractAdapter
      * @param mixed $func
      * @return void
      * @throws AclException
-     * @throws \MongoCursorException
-     * @throws \MongoCursorTimeoutException
-     * @throws \MongoException
      */
     public function deny($roleName, $componentName, $access, $func = null): void
     {
@@ -400,12 +389,12 @@ class Mongo extends AbstractAdapter
     /**
      * Returns a mongo collection
      *
-     * @param  string           $name
-     * @return \MongoCollection
+     * @param string $name
+     * @return Collection
      */
-    protected function getCollection($name)
+    protected function getCollection($name): Collection
     {
-        return $this->options['db']->selectCollection($this->options[$name]);
+        return $this->db->selectCollection($this->dbName, $this->options[$name]);
     }
 
     /**
@@ -417,73 +406,61 @@ class Mongo extends AbstractAdapter
      * @param integer $action
      * @return boolean
      * @throws AclException
-     * @throws \MongoCursorException
-     * @throws \MongoCursorTimeoutException
-     * @throws \MongoException
      */
     protected function insertOrUpdateAccess($roleName, $componentName, $accessName, $action)
     {
         /**
          * Check if the access is valid in the component
          */
-        $exists = $this->getCollection('componentsAccesses')->count(
-            [
-                'components_name' => $componentName,
-                'access_name'    => $accessName,
-            ]
-        );
+        $count = $this->getCollection('componentsAccesses')->countDocuments([
+            'components_name' => $componentName,
+            'access_name'     => $accessName,
+        ]);
 
-        if (!$exists) {
+        if ($count === 0) {
             throw new AclException(
                 "Access '" . $accessName . "' does not exist in component '" . $componentName . "' in ACL"
             );
         }
 
+        $filters = [
+            'roles_name'      => $roleName,
+            'components_name' => $componentName,
+            'access_name'     => $accessName,
+        ];
+
         $accessList = $this->getCollection('accessList');
+        $access = $accessList->findOne($filters);
 
-        $access = $accessList->findOne(
-            [
-                'roles_name'     => $roleName,
+        if ($access === null) {
+            $accessList->insertOne([
+                'roles_name'      => $roleName,
                 'components_name' => $componentName,
-                'access_name'    => $accessName,
-            ]
-        );
-
-        if (!$access) {
-            $accessList->insert(
-                [
-                    'roles_name'     => $roleName,
-                    'components_name' => $componentName,
-                    'access_name'    => $accessName,
-                    'allowed'        => $action,
-                ]
-            );
+                'access_name'     => $accessName,
+                'allowed'         => $action,
+            ]);
         } else {
-            $access['allowed'] = $action;
-
-            $accessList->save($access);
+            $accessList->updateOne($filters, [
+                'allowed' => $action,
+            ]);
         }
 
         /**
          * Update the access '*' in access_list
          */
-        $exists = $accessList->count(
-            [
-                'roles_name'     => $roleName,
-                'components_name' => $componentName,
-                'access_name'    => '*',
-            ]
-        );
+        $count = $accessList->countDocuments([
+            'roles_name'      => $roleName,
+            'components_name' => $componentName,
+            'access_name'     => '*',
+        ]);
 
-        if (!$exists) {
-            $accessList->insert(
-                [
-                    'roles_name'     => $roleName,
-                    'components_name' => $componentName,
-                    'access_name'    => '*',
-                    'allowed'        => $this->defaultAccess,
-                ]
-            );
+        if ($count === 0) {
+            $accessList->insertOne([
+                'roles_name'      => $roleName,
+                'components_name' => $componentName,
+                'access_name'     => '*',
+                'allowed'         => $this->defaultAccess,
+            ]);
         }
 
         return true;
@@ -497,9 +474,6 @@ class Mongo extends AbstractAdapter
      * @param mixed $access
      * @param integer $action
      * @throws AclException
-     * @throws \MongoCursorException
-     * @throws \MongoCursorTimeoutException
-     * @throws \MongoException
      */
     protected function allowOrDeny($roleName, $componentName, $access, $action)
     {
