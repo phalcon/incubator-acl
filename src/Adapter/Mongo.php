@@ -14,9 +14,9 @@ declare(strict_types=1);
 namespace Phalcon\Incubator\Acl\Adapter;
 
 use Phalcon\Acl\Adapter\AbstractAdapter;
+use Phalcon\Acl\Component;
 use Phalcon\Acl\Enum as AclEnum;
 use Phalcon\Acl\Exception as AclException;
-use Phalcon\Acl\Component;
 use Phalcon\Acl\Role;
 use Phalcon\Acl\RoleInterface;
 
