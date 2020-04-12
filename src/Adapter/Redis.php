@@ -101,7 +101,7 @@ class Redis extends AbstractAdapter
      * <code>$acl->addInherit('administrator', ['consultor', 'poweruser']);</code>
      *
      * @param string $roleName
-     * @param Role|string $roleToInherit
+     * @param mixed $roleToInherit
      * @return bool
      * @throws AclException
      */
@@ -120,8 +120,8 @@ class Redis extends AbstractAdapter
          * Deep inherits Explicit tests array, Implicit recurs through inheritance chain
          */
         if (is_array($roleToInherit)) {
-            foreach ($roleToInherit as $roleToInherit) {
-                $this->redis->sAdd("rolesInherits:$roleName", $roleToInherit);
+            foreach ($roleToInherit as $role) {
+                $this->redis->sAdd("rolesInherits:$roleName", $role);
             }
 
             return true;
@@ -156,7 +156,7 @@ class Redis extends AbstractAdapter
      * @return bool
      * @throws AclException
      */
-    public function addComponent($component, $accessList = null): bool
+    public function addComponent($component, $accessList): bool
     {
         if (is_string($component)) {
             $component = new Component($component, ucwords($component) . ' Component');
@@ -195,21 +195,26 @@ class Redis extends AbstractAdapter
      * @param  string $roleName
      * @return bool
      */
-    public function isRole($roleName): bool
+    public function isRole(string $roleName): bool
     {
         return $this->redis->hExists('roles', $roleName);
     }
 
     /**
      * @param  string $componentName
-     * @return boolean
+     * @return bool
      */
-    public function isComponent($componentName): bool
+    public function isComponent(string $componentName): bool
     {
         return $this->redis->hExists('components', $componentName);
     }
 
-    public function isComponentAccess($component, $access)
+    /**
+     * @param string $component
+     * @param string $access
+     * @return bool
+     */
+    public function isComponentAccess(string $component, string $access)
     {
         return $this->redis->sIsMember("componentsAccesses:$component", $access);
     }
@@ -309,40 +314,6 @@ class Redis extends AbstractAdapter
 
         if ($component === '*' || empty($component)) {
             $this->componentPermission($role, $access, AclEnum::ALLOW);
-        }
-    }
-
-    /**
-     * @param $role
-     * @param $access
-     * @param $allowOrDeny
-     * @throws AclException
-     */
-    protected function componentPermission($role, $access, $allowOrDeny)
-    {
-        foreach ($this->getComponents() as $component) {
-            if ($role === '*' || empty($role)) {
-                $this->rolePermission($component, $access, $allowOrDeny);
-            } else {
-                $this->allowOrDeny($role, $component, $access, $allowOrDeny);
-            }
-        }
-    }
-
-    /**
-     * @param $component
-     * @param $access
-     * @param $allowOrDeny
-     * @throws AclException
-     */
-    protected function rolePermission($component, $access, $allowOrDeny)
-    {
-        foreach ($this->getRoles() as $role) {
-            if ($component === '*' || empty($component)) {
-                $this->componentPermission($role, $access, $allowOrDeny);
-            } else {
-                $this->allowOrDeny($role, $component, $access, $allowOrDeny);
-            }
         }
     }
 
@@ -504,6 +475,40 @@ class Redis extends AbstractAdapter
             }
         } else {
             $this->setAccess($roleName, $componentName, $access, $action);
+        }
+    }
+
+    /**
+     * @param $role
+     * @param $access
+     * @param $allowOrDeny
+     * @throws AclException
+     */
+    protected function componentPermission($role, $access, $allowOrDeny)
+    {
+        foreach ($this->getComponents() as $component) {
+            if ($role === '*' || empty($role)) {
+                $this->rolePermission($component, $access, $allowOrDeny);
+            } else {
+                $this->allowOrDeny($role, $component, $access, $allowOrDeny);
+            }
+        }
+    }
+
+    /**
+     * @param $component
+     * @param $access
+     * @param $allowOrDeny
+     * @throws AclException
+     */
+    protected function rolePermission($component, $access, $allowOrDeny)
+    {
+        foreach ($this->getRoles() as $role) {
+            if ($component === '*' || empty($component)) {
+                $this->componentPermission($role, $access, $allowOrDeny);
+            } else {
+                $this->allowOrDeny($role, $component, $access, $allowOrDeny);
+            }
         }
     }
 }
