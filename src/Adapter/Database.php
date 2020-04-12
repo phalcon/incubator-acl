@@ -34,36 +34,42 @@ class Database extends AbstractAdapter
 
     /**
      * Roles table
+     *
      * @var string
      */
     protected $roles;
 
     /**
      * Resources table
+     *
      * @var string
      */
     protected $resources;
 
     /**
      * Resources Accesses table
+     *
      * @var string
      */
     protected $resourcesAccesses;
 
     /**
      * Access List table
+     *
      * @var string
      */
     protected $accessList;
 
     /**
      * Roles Inherits table
+     *
      * @var string
      */
     protected $rolesInherits;
 
     /**
      * Default action for no arguments is allow
+     *
      * @var int
      */
     protected $noArgumentsDefaultAction = Enum::ALLOW;
@@ -165,11 +171,11 @@ class Database extends AbstractAdapter
 
     /**
      * @param string $roleName
-     * @param string $roleToInherit
+     * @param mixed $roleToInherit
      * @return bool
      * @throws AclException
      */
-    public function addInherit($roleName, $roleToInherit): bool
+    public function addInherit(string $roleName, $roleToInherit): bool
     {
         $exists = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM {$this->roles} WHERE name = ?",
@@ -340,29 +346,20 @@ class Database extends AbstractAdapter
      */
     public function getRoles(): array
     {
-        $roles = [];
-        $sql   = "SELECT * FROM {$this->roles}";
-
-        $rows = $this->connection->fetchAll(
-            $sql,
-            DbEnum::FETCH_ASSOC
-        );
-
+        $data = [];
+        $rows = $this->connection->fetchAll("SELECT * FROM {$this->roles}", DbEnum::FETCH_ASSOC);
         foreach ($rows as $row) {
-            $roles[] = new Role(
-                $row['name'],
-                $row['description']
-            );
+            $data[] = new Role($row['name'], $row['description']);
         }
 
-        return $roles;
+        return $data;
     }
 
     /**
-     * @param string       $resourceName
+     * @param string       $componentName
      * @param array|string $accessList
      */
-    public function dropComponentAccess($resourceName, $accessList)
+    public function dropComponentAccess(string $componentName, $accessList): void
     {
         throw new \BadMethodCallException('Not implemented yet.');
     }
@@ -382,14 +379,14 @@ class Database extends AbstractAdapter
      * </code>
      *
      * @param string $roleName
-     * @param string $resourceName
+     * @param string $componentName
      * @param array|string $access
      * @param mixed $func
      * @throws AclException
      */
-    public function allow($roleName, $resourceName, $access, $func = null)
+    public function allow(string $roleName, string $componentName, $access, $func = null): void
     {
-        $this->allowOrDeny($roleName, $resourceName, $access, Enum::ALLOW);
+        $this->allowOrDeny($roleName, $componentName, $access, Enum::ALLOW);
     }
 
     /**
@@ -407,15 +404,15 @@ class Database extends AbstractAdapter
      * </code>
      *
      * @param string $roleName
-     * @param string $resourceName
+     * @param string $componentName
      * @param array|string $access
      * @param mixed $func
      * @return void
      * @throws AclException
      */
-    public function deny($roleName, $resourceName, $access, $func = null)
+    public function deny(string $roleName, string $componentName, $access, $func = null): void
     {
-        $this->allowOrDeny($roleName, $resourceName, $access, Enum::DENY);
+        $this->allowOrDeny($roleName, $componentName, $access, Enum::DENY);
     }
 
     /**
@@ -434,7 +431,7 @@ class Database extends AbstractAdapter
      * @param array  $parameters
      * @return bool
      */
-    public function isAllowed($role, $resource, $access, array $parameters = null): bool
+    public function isAllowed($role, $resource, string $access, array $parameters = null): bool
     {
         $sql = implode(
             ' ',
@@ -499,7 +496,7 @@ class Database extends AbstractAdapter
      *
      * @param int $defaultAccess Phalcon\Acl::ALLOW or Phalcon\Acl::DENY
      */
-    public function setNoArgumentsDefaultAction(int $defaultAccess)
+    public function setNoArgumentsDefaultAction(int $defaultAccess): void
     {
         $this->noArgumentsDefaultAction = $defaultAccess;
     }
@@ -617,9 +614,7 @@ class Database extends AbstractAdapter
     protected function allowOrDeny(string $roleName, string $componentName, $access, int $action): void
     {
         if (!$this->isRole($roleName)) {
-            throw new AclException(
-                "Role '{$roleName}' does not exist in the list"
-            );
+            throw new AclException("Role '{$roleName}' does not exist in the list");
         }
 
         if (!is_array($access)) {
