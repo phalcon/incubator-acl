@@ -34,7 +34,8 @@
         "vimeo/psalm": "3.6.2",
         "squizlabs/php_codesniffer": "3.5.1",
         "codeception/codeception": "^4.1",
-        "codeception/module-asserts": "^1.0.0"
+        "codeception/module-asserts": "^1.0.0",
+        "mongodb/mongodb": "^1.6"
     },
     "autoload": {
         "psr-4": {
