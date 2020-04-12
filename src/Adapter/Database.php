@@ -457,8 +457,7 @@ class Database extends AbstractAdapter
             ]
         );
 
-        // fetch one entry...
-        $allowed = $this->connection->fetchOne(
+        $row = $this->connection->fetchOne(
             $sql,
             DbEnum::FETCH_NUM,
             [
@@ -469,14 +468,7 @@ class Database extends AbstractAdapter
             ]
         );
 
-        if (is_array($allowed)) {
-            return (bool) $allowed[0];
-        }
-
-        /**
-         * Return the default access action
-         */
-        return $this->defaultAccess;
+        return (bool)$row[0];
     }
 
     /**
