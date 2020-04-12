@@ -44,14 +44,14 @@ class Database extends AbstractAdapter
      *
      * @var string
      */
-    protected $resources;
+    protected $components;
 
     /**
      * Resources Accesses table
      *
      * @var string
      */
-    protected $resourcesAccesses;
+    protected $componentsAccesses;
 
     /**
      * Access List table
@@ -92,8 +92,8 @@ class Database extends AbstractAdapter
 
         $tables = [
             'roles',
-            'resources',
-            'resourcesAccesses',
+            'components',
+            'componentsAccesses',
             'accessList',
             'rolesInherits',
         ];
@@ -231,7 +231,7 @@ class Database extends AbstractAdapter
     public function isComponent(string $componentName): bool
     {
         $exists = $this->connection->fetchOne(
-            "SELECT COUNT(*) FROM {$this->resources} WHERE name = ?",
+            "SELECT COUNT(*) FROM {$this->components} WHERE name = ?",
             DbEnum::FETCH_NUM,
             [$componentName]
         );
@@ -251,53 +251,53 @@ class Database extends AbstractAdapter
      * $acl->addComponent('customers', ['create', 'search']);
      * </code>
      *
-     * @param Resource|string $resource
+     * @param Component|string $component
      * @param array|string $accessList
      * @return boolean
      * @throws AclException
      */
-    public function addComponent($resource, $accessList = null): bool
+    public function addComponent($component, $accessList = null): bool
     {
-        if (is_string($resource)) {
-            $resource = new Component($resource);
+        if (is_string($component)) {
+            $component = new Component($component);
         }
 
         $exists = $this->connection->fetchOne(
-            "SELECT COUNT(*) FROM {$this->resources} WHERE name = ?",
+            "SELECT COUNT(*) FROM {$this->components} WHERE name = ?",
             DbEnum::FETCH_NUM,
-            [$resource->getName()]
+            [$component->getName()]
         );
 
         if (!$exists[0]) {
             $this->connection->execute(
-                "INSERT INTO {$this->resources} VALUES (?, ?)",
+                "INSERT INTO {$this->components} VALUES (?, ?)",
                 [
-                    $resource->getName(),
-                    $resource->getDescription(),
+                    $component->getName(),
+                    $component->getDescription(),
                 ]
             );
         }
 
         if (!empty($accessList)) {
-            return $this->addComponentAccess($resource->getName(), $accessList);
+            return $this->addComponentAccess($component->getName(), $accessList);
         }
 
         return true;
     }
 
     /**
-     * @param  string       $resourceName
+     * @param  string       $componentName
      * @param  array|string $accessList
      * @return boolean
      * @throws AclException
      */
-    public function addComponentAccess(string $resourceName, $accessList): bool
+    public function addComponentAccess(string $componentName, $accessList): bool
     {
-        if (!$this->isResource($resourceName)) {
-            throw new AclException("Resource '{$resourceName}' does not exist in ACL");
+        if (!$this->isResource($componentName)) {
+            throw new AclException("Resource '{$componentName}' does not exist in ACL");
         }
 
-        $sql = "SELECT COUNT(*) FROM {$this->resourcesAccesses} WHERE resources_name = ? AND access_name = ?";
+        $sql = "SELECT COUNT(*) FROM {$this->componentsAccesses} WHERE components_name = ? AND access_name = ?";
 
         if (!is_array($accessList)) {
             $accessList = [$accessList];
@@ -308,16 +308,16 @@ class Database extends AbstractAdapter
                 $sql,
                 DbEnum::FETCH_NUM,
                 [
-                    $resourceName,
+                    $componentName,
                     $accessName,
                 ]
             );
 
             if (!$exists[0]) {
                 $this->connection->execute(
-                    'INSERT INTO ' . $this->resourcesAccesses . ' VALUES (?, ?)',
+                    'INSERT INTO ' . $this->componentsAccesses . ' VALUES (?, ?)',
                     [
-                        $resourceName,
+                        $componentName,
                         $accessName,
                     ]
                 );
@@ -333,7 +333,7 @@ class Database extends AbstractAdapter
     public function getComponents(): array
     {
         $components = [];
-        $rows = $this->connection->fetchAll("SELECT * FROM {$this->resources}", DbEnum::FETCH_ASSOC);
+        $rows = $this->connection->fetchAll("SELECT * FROM {$this->components}", DbEnum::FETCH_ASSOC);
         foreach ($rows as $row) {
             $components[] = new Component($row['name'], $row['description']);
         }
@@ -374,7 +374,7 @@ class Database extends AbstractAdapter
      * $acl->allow('guests', 'customers', ['search', 'create']);
      * //Allow access to any role to browse on products
      * $acl->allow('*', 'products', 'browse');
-     * //Allow access to any role to browse on any resource
+     * //Allow access to any role to browse on any component
      * $acl->allow('*', '*', 'browse');
      * </code>
      *
@@ -399,7 +399,7 @@ class Database extends AbstractAdapter
      * $acl->deny('guests', 'customers', ['search', 'create']);
      * //Deny access to any role to browse on products
      * $acl->deny('*', 'products', 'browse');
-     * //Deny access to any role to browse on any resource
+     * //Deny access to any role to browse on any component
      * $acl->deny('*', '*', 'browse');
      * </code>
      *
@@ -419,19 +419,19 @@ class Database extends AbstractAdapter
      * {@inheritdoc}
      * Example:
      * <code>
-     * //Does Andres have access to the customers resource to create?
+     * //Does Andres have access to the customers component to create?
      * $acl->isAllowed('Andres', 'Products', 'create');
-     * //Do guests have access to any resource to edit?
+     * //Do guests have access to any component to edit?
      * $acl->isAllowed('guests', '*', 'edit');
      * </code>
      *
      * @param string $role
-     * @param string $resource
+     * @param string $component
      * @param string $access
      * @param array  $parameters
      * @return bool
      */
-    public function isAllowed($role, $resource, string $access, array $parameters = null): bool
+    public function isAllowed($role, $component, string $access, array $parameters = null): bool
     {
         $sql = implode(
             ' ',
@@ -446,8 +446,8 @@ class Database extends AbstractAdapter
                     // or 'any'
                     "UNION SELECT '*'",
                 ')',
-                // resources_name should be given one or 'any'
-                "AND resources_name IN (?, '*')",
+                // components_name should be given one or 'any'
+                "AND components_name IN (?, '*')",
                 // access_name should be given one or 'any'
                 "AND access_name IN (?, '*')",
                 // order be the sum of booleans for 'literals' before 'any'
@@ -464,7 +464,7 @@ class Database extends AbstractAdapter
             [
                 $role,
                 $role,
-                $resource,
+                $component,
                 $access,
             ]
         );
@@ -505,31 +505,31 @@ class Database extends AbstractAdapter
      * Inserts/Updates a permission in the access list
      *
      * @param  string  $roleName
-     * @param  string  $resourceName
+     * @param  string  $componentName
      * @param  string  $accessName
      * @param  integer $action
      * @throws AclException
      */
-    protected function insertOrUpdateAccess($roleName, $resourceName, $accessName, $action): void
+    protected function insertOrUpdateAccess($roleName, $componentName, $accessName, $action): void
     {
         /**
-         * Check if the access is valid in the resource unless wildcard
+         * Check if the access is valid in the component unless wildcard
          */
-        if ($resourceName !== '*' && $accessName !== '*') {
-            $sql = "SELECT COUNT(*) FROM {$this->resourcesAccesses} WHERE resources_name = ? AND access_name = ?";
+        if ($componentName !== '*' && $accessName !== '*') {
+            $sql = "SELECT COUNT(*) FROM {$this->componentsAccesses} WHERE components_name = ? AND access_name = ?";
 
             $exists = $this->connection->fetchOne(
                 $sql,
                 DbEnum::FETCH_NUM,
                 [
-                    $resourceName,
+                    $componentName,
                     $accessName,
                 ]
             );
 
             if (!$exists[0]) {
                 throw new AclException(
-                    "Access '{$accessName}' does not exist in resource '{$resourceName}' in ACL"
+                    "Access '{$accessName}' does not exist in component '{$componentName}' in ACL"
                 );
             }
         }
@@ -538,14 +538,14 @@ class Database extends AbstractAdapter
          * Update the access in access_list
          */
         $sql = "SELECT COUNT(*) FROM {$this->accessList} "
-            . " WHERE roles_name = ? AND resources_name = ? AND access_name = ?";
+            . " WHERE roles_name = ? AND components_name = ? AND access_name = ?";
 
         $exists = $this->connection->fetchOne(
             $sql,
             DbEnum::FETCH_NUM,
             [
                 $roleName,
-                $resourceName,
+                $componentName,
                 $accessName,
             ]
         );
@@ -555,18 +555,18 @@ class Database extends AbstractAdapter
 
             $params = [
                 $roleName,
-                $resourceName,
+                $componentName,
                 $accessName,
                 $action,
             ];
         } else {
             $sql = "UPDATE {$this->accessList} SET allowed = ? " .
-                "WHERE roles_name = ? AND resources_name = ? AND access_name = ?";
+                "WHERE roles_name = ? AND components_name = ? AND access_name = ?";
 
             $params = [
                 $action,
                 $roleName,
-                $resourceName,
+                $componentName,
                 $accessName,
             ];
         }
@@ -577,14 +577,14 @@ class Database extends AbstractAdapter
          * Update the access '*' in access_list
          */
         $sql = "SELECT COUNT(*) FROM {$this->accessList} " .
-            "WHERE roles_name = ? AND resources_name = ? AND access_name = ?";
+            "WHERE roles_name = ? AND components_name = ? AND access_name = ?";
 
         $exists = $this->connection->fetchOne(
             $sql,
             DbEnum::FETCH_NUM,
             [
                 $roleName,
-                $resourceName,
+                $componentName,
                 '*',
             ]
         );
@@ -594,7 +594,7 @@ class Database extends AbstractAdapter
                 "INSERT INTO {$this->accessList} VALUES (?, ?, ?, ?)",
                 [
                     $roleName,
-                    $resourceName,
+                    $componentName,
                     '*',
                     $this->defaultAccess,
                 ]
