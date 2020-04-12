@@ -31,8 +31,8 @@ jobs:
     name: Static Code with PHP ${{ matrix.php-versions }}
     runs-on: ubuntu-latest
     env:
-      extensions: mbstring, intl, json, psr, phalcon-4.0.5
-      key: cache-v0.0.1
+      extensions: mbstring, intl, json, phalcon4, redis, mongodb
+      key: cache-v0.0.2
     needs: validate-code-style
     strategy:
       fail-fast: false
