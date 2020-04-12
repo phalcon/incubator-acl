@@ -76,8 +76,8 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
-      - name: Install Composer dependencies with PHPStan
-        run: composer require --prefer-dist --no-progress --no-suggest --dev phpstan/phpstan
+      - name: Install Composer dependencies
+        run: composer require --prefer-dist
 
       - name: Run Psalm
         if: always()
