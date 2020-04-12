@@ -9,5 +9,7 @@ actor: FunctionalTester
 modules:
     enabled:
         # add a framework module here
+        - Asserts
         - \Helper\Functional
+        - \Helper\Unit
     step_decorators: ~        
