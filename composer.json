@@ -21,7 +21,7 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/phalcon/incubator-acl/issues",
+        "issues": "https://github.com/phalcon/incubator/issues",
         "source": "https://github.com/phalcon/incubator-acl",
         "forum": "https://forum.phalcon.io"
     },
