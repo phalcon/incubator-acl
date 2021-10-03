@@ -7,9 +7,10 @@
     xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
 >
     <projectFiles>
-        <directory name="src/" />
+        <directory name="src"/>
         <ignoreFiles>
-            <directory name="vendor" />
+            <directory name="vendor"/>
+            <file name="vendor/symfony/polyfill-mbstring/bootstrap80.php"/>
         </ignoreFiles>
     </projectFiles>
 
@@ -30,7 +31,6 @@
         <MissingReturnType errorLevel="info" />
         <MissingPropertyType errorLevel="info" />
         <InvalidDocblock errorLevel="info" />
-        <MisplacedRequiredParam errorLevel="info" />
 
         <PropertyNotSetInConstructor errorLevel="info" />
         <MissingClosureParamType errorLevel="info" />
@@ -46,7 +46,7 @@
 
         <MoreSpecificReturnType errorLevel="info" />
         <LessSpecificReturnStatement errorLevel="info" />
-        <TypeCoercion errorLevel="info" />
+        <PossiblyInvalidArrayAccess errorLevel="info" />
 
         <PossiblyInvalidPropertyAssignmentValue errorLevel="info" />
         <PossiblyNullArgument errorLevel="info" />
