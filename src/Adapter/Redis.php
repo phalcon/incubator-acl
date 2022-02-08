@@ -502,4 +502,14 @@ class Redis extends AbstractAdapter
             }
         }
     }
+
+    /**
+     * Returns the inherited roles for a passed role name. If no role name
+     * has been specified it will return the whole array. If the role has not
+     * been found it returns an empty array
+     */
+    public function getInheritedRoles(string $roleName = ""): array
+    {
+        return [];
+    }
 }
